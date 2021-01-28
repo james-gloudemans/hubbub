@@ -1,5 +1,4 @@
 //! # Definition of Topic type for pub/sub
-use std::slice::Iter;
 use std::str::from_utf8;
 
 use bytes::Bytes;
@@ -24,12 +23,12 @@ impl Topic {
     }
 
     /// Get an iterator over the writer for each subscriber to a `Topic`.
-    pub fn subscribers(&self) -> Iter<HubWriter> {
+    pub fn subscribers(&self) -> std::slice::Iter<HubWriter> {
         self.subscribers.iter()
     }
 
     /// Get an iterator over the reader for each publisher to a `Topic`.
-    pub fn publishers(&self) -> Iter<HubReader> {
+    pub fn publishers(&self) -> std::slice::Iter<HubReader> {
         self.publishers.iter()
     }
 
