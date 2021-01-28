@@ -1,5 +1,6 @@
 //! # Hubbub Client Library
 // #![allow(dead_code, unused_imports, unused_variables)]
+use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::str::from_utf8;
 
@@ -10,6 +11,72 @@ use tokio::net::TcpStream;
 
 use crate::msg::{Message, MessageError};
 use crate::{HubReader, HubWriter, NodeEntity};
+
+/// A node in the Hubbub network
+pub struct Node<T> {
+    pub userdata: T,
+    name: String,
+    subscriptions: HashSet<String>,
+    publishers: HashSet<String>,
+}
+
+impl<T> Node<T> {
+    /// Construct a new Node with the given `name`.
+    pub fn new(name: &str, userdata: T) -> Self {
+        // TODO: Connect to Hub and have master track nodes for introspection.
+        // TODO Idea: Upon connection to Hub, keep stream and share it with all
+        // connected entities.
+        Self {
+            userdata,
+            name: String::from(name),
+            subscriptions: HashSet::new(),
+            publishers: HashSet::new(),
+        }
+    }
+
+    /// Get the name of a node.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get an iterator over the topic names for each subscriber on a `Node`.
+    pub fn subscriptions(&self) -> std::collections::hash_set::Iter<String> {
+        self.subscriptions.iter()
+    }
+
+    /// Get an iterator over the topic names for each publisher on a `Node`.
+    pub fn publishers(&self) -> std::collections::hash_set::Iter<String> {
+        self.publishers.iter()
+    }
+
+    /// Create a new publisher on this node and return it.
+    pub async fn create_publisher<M>(&mut self, topic: &str) -> Result<Publisher<M>>
+    where
+        M: Serialize + DeserializeOwned,
+    {
+        if self.publishers.insert(String::from(topic)) {
+            Ok(Publisher::new(topic).await?)
+        } else {
+            Err(HubbubError::DuplicatePublisher {
+                topic: String::from(topic),
+            })
+        }
+    }
+
+    /// Create a new subscriber on this node and return it.
+    pub async fn create_subscriber<M>(&mut self, topic: &str) -> Result<Subscriber<M>>
+    where
+        M: Serialize + DeserializeOwned,
+    {
+        if self.subscriptions.insert(String::from(topic)) {
+            Ok(Subscriber::new(topic).await?)
+        } else {
+            Err(HubbubError::DuplicateSubscriber {
+                topic: String::from(topic),
+            })
+        }
+    }
+}
 
 /// An entity that can publish `Message<T>`s to all `Subscriber`s on a topic.
 ///
@@ -202,13 +269,14 @@ where
     }
 }
 
-/// Error type representing all possible errors that can occur with exchanging messages over
-/// a network with Hubbub.
+/// Error type representing all possible errors that can occur in the Hubbub Client Library
 #[derive(Debug)]
 pub enum HubbubError {
     IoError(tokio::io::Error),
     MessageError(MessageError),
-    NotImplemented,
+    DuplicatePublisher { topic: String },
+    DuplicateSubscriber { topic: String },
+    // NotImplemented,
 }
 
 impl From<tokio::io::Error> for HubbubError {
