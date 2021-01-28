@@ -24,7 +24,7 @@ async fn main() {
     // To be replaced by client code
     let mut publ: Publisher<String> = Publisher::new(&topic).await.unwrap();
     for i in 1u32.. {
-        time::sleep(time::Duration::from_millis(1)).await;
+        time::sleep(time::Duration::from_secs(1)).await;
         let next_msg = format!("{} {}", message, i);
         println!("Sending message: '{}'", &next_msg);
         publ.publish(next_msg).await.unwrap();

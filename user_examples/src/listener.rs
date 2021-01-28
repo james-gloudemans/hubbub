@@ -1,9 +1,5 @@
 #![allow(dead_code, unused_imports, unused_variables)]
-use bytes::BytesMut;
 use chrono::{Duration, Utc};
-use std::str::from_utf8;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
-use tokio::net::TcpStream;
 
 use hubbublib::hcl::Subscriber;
 use hubbublib::msg::Message;
@@ -24,12 +20,19 @@ async fn main() {
 
     let mut sub: Subscriber<String> = Subscriber::new(&topic).await.unwrap();
     tokio::spawn(async move {
-        sub.listen(latency).await.unwrap();
+        sub.listen(echo_cb).await.unwrap();
     });
     loop {}
 }
 
-fn latency(msg: &Message<String>) {
+fn echo_cb(msg: &Message<String>) {
+    println!(
+        "Received message: '{}'",
+        msg.data().unwrap_or(&String::from(""))
+    );
+}
+
+fn latency_cb(msg: &Message<String>) {
     let latency: Duration = Utc::now() - msg.stamp();
     let latency_disp: String;
     if latency < Duration::milliseconds(1) {
