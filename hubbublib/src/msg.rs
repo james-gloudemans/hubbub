@@ -1,3 +1,4 @@
+//! # Definition of Hubbub messages
 use std::str::from_utf8;
 
 use bytes::Bytes;

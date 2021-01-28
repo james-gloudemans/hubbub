@@ -1,3 +1,4 @@
+//! # Definition of Topic type for pub/sub
 use std::slice::Iter;
 use std::str::from_utf8;
 
