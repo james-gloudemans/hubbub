@@ -21,7 +21,7 @@ pub struct Node<T> {
 }
 
 impl<T> Node<T> {
-    /// Construct a new Node with the given `name`.
+    /// Construct a new [`Node`] with the given `name`.
     pub fn new(name: &str, userdata: T) -> Self {
         // TODO: Connect to Hub and have master track nodes for introspection.
         // TODO Idea: Upon connection to Hub, keep stream and share it with all
@@ -34,22 +34,22 @@ impl<T> Node<T> {
         }
     }
 
-    /// Get the name of a node.
+    /// Get the name of a [`Node`].
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    /// Get an iterator over the topic names for each subscriber on a `Node`.
+    /// Get an iterator over the topic names for each subscriber on a [`Node`].
     pub fn subscriptions(&self) -> std::collections::hash_set::Iter<String> {
         self.subscriptions.iter()
     }
 
-    /// Get an iterator over the topic names for each publisher on a `Node`.
+    /// Get an iterator over the topic names for each publisher on a [`Node`].
     pub fn publishers(&self) -> std::collections::hash_set::Iter<String> {
         self.publishers.iter()
     }
 
-    /// Create a new publisher on this node and return it.
+    /// Create a new publisher on this [`Node`] and return it.
     pub async fn create_publisher<M>(&mut self, topic: &str) -> Result<Publisher<M>>
     where
         M: Serialize + DeserializeOwned,
@@ -63,7 +63,7 @@ impl<T> Node<T> {
         }
     }
 
-    /// Create a new subscriber on this node and return it.
+    /// Create a new subscriber on this [`Node`] and return it.
     pub async fn create_subscriber<M>(&mut self, topic: &str) -> Result<Subscriber<M>>
     where
         M: Serialize + DeserializeOwned,
@@ -78,7 +78,7 @@ impl<T> Node<T> {
     }
 }
 
-/// An entity that can publish `Message<T>`s to all `Subscriber`s on a topic.
+/// An entity that can publish [`Message<T>`]s to all [`Subscriber`]s on a topic.
 ///
 /// # Examples
 /// This example takes a topic name and a message from the command line, then publishes
@@ -128,11 +128,11 @@ where
     // TODO Idea: could the Hub send us back a reference to the topic?
     // Then, we could publish directly to the subscriber's streams
     // without needing to communicate through the master.
-    // Might need to wrap the topic in an `Arc`
-    /// Construct a `Publisher<T>` to publish `Message<T>`s to the topic named `topic_name`.
+    // Might need to wrap the topic in an [`Arc`]
+    /// Construct a [`Publisher<T>`] to publish [`Message<T>`]s to the topic named `topic_name`.
     ///
     /// # Errors
-    /// Returns `Err` if it fails to connect to the `Hub`.
+    /// Returns [`Err`] if it fails to connect to the `Hub`.
     ///
     /// # Examples
     /// ```
@@ -157,15 +157,15 @@ where
         })
     }
 
-    /// Get the name of the topic this `Publisher` is publishing to.
+    /// Get the name of the topic this [`Publisher`] is publishing to.
     pub fn topic(&self) -> &str {
         &self.topic_name
     }
 
-    /// Publish a `Message<T>` containing `message` on the connected topic.
+    /// Publish a [`Message<T>`] containing `message` on the connected topic.
     ///
     /// # Errors
-    /// Returns `Err` if the message fails to serialize or if the underlying write
+    /// Returns [`Err`] if the message fails to serialize or if the underlying write
     /// operations fail (typically due to disconnection).
     pub async fn publish(&mut self, message: T) -> Result<()> {
         let msg_bytes: Bytes = Message::new(Some(message)).as_bytes()?;
@@ -174,7 +174,7 @@ where
     }
 }
 
-/// An entity than can listen for `Message<T>`s published on a topic.
+/// An entity than can listen for [`Message<T>`]s published on a topic.
 ///
 /// # Examples
 /// This example takes a topic name from the command line and prints it to stdout.
@@ -217,10 +217,10 @@ impl<T> Subscriber<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    /// Construct a `Subscriber<T>` to listen for `Message<T>`s on a given topic.
+    /// Construct a [`Subscriber<T>`] to listen for [`Message<T>`]s on a given topic.
     ///
     /// # Errors
-    /// Returns `Err` if it fails to connect to the `Hub`.
+    /// Returns [`Err`] if it fails to connect to the `Hub`.
     ///
     /// # Examples
     /// ```
@@ -246,7 +246,7 @@ where
         })
     }
 
-    /// Get the name of the topic a `Subscriber` is connected to.
+    /// Get the name of the topic a [`Subscriber`] is connected to.
     pub fn topic(&self) -> &str {
         &self.topic_name
     }
@@ -254,7 +254,7 @@ where
     /// Listen for messages and process them with the given `callback` function.
     ///
     /// # Errors
-    /// Returns `Err` if the message fails to deserialize or if the underlying read
+    /// Returns [`Err`] if the message fails to deserialize or if the underlying read
     /// operations fail (typically due to disconnection).
     pub async fn listen<F>(&mut self, callback: F) -> Result<()>
     where
@@ -291,5 +291,5 @@ impl From<MessageError> for HubbubError {
     }
 }
 
-/// A specialized `Result` type for Hubbub message exchange operations.
+/// A specialized [`Result`] type for Hubbub message exchange operations.
 pub type Result<T> = std::result::Result<T, HubbubError>;

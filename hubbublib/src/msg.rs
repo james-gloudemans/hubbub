@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 
 /// A message used to exhange Rust data structures between Hubbub nodes.
 ///
-/// Can contain any type that `derive`s `serde`'s `Serialize` and `Deserialize` traits,
-/// or empty (`None`).
+/// Can contain any type that `derive`s `serde`'s [`Serialize`] and [`Deserialize`] traits,
+/// or empty ([`None`]).
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message<T> {
     header: Header,
@@ -20,7 +20,7 @@ impl<T> Message<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    /// Construct a new `Message<T>`.
+    /// Construct a new [`Message<T>`].
     ///
     /// Messages should be sent as soon as possible after they are created to ensure
     /// that they receive an accurate timestamp.
@@ -40,35 +40,35 @@ where
         }
     }
 
-    /// Construct a new `Message<T>` from a `Bytes` buffer.
+    /// Construct a new [`Message<T>`] from a `Bytes` buffer.
     ///
     /// # Errors
-    /// Returns `Err` if `buf` is not valid UTF8 or if it does not deserialize to
-    /// a `Message<T>`
+    /// Returns [`Err` ]if `buf` is not valid UTF8 or if it does not deserialize to
+    /// a [`Message<T>`]
     pub fn from_bytes(buf: &Bytes) -> Result<Self> {
         Ok(serde_json::from_str(from_utf8(buf)?)?)
     }
 
-    /// Convert a `Message<T>` to a `Bytes` instance which can be sent over the
+    /// Convert a [`Message<T>`] to a `Bytes` instance which can be sent over the
     /// network to other Hubbub nodes.
     /// # Errors
-    /// Returns `Err` if the `Message<T>` fails to serialize.
+    /// Returns [`Err` ]if the [`Message<T>`] fails to serialize.
     pub fn as_bytes(&self) -> Result<Bytes> {
         Ok(serde_json::to_string(self).map(|s| Bytes::from(s + "\n"))?)
     }
 
-    /// Get a reference to the data held in a `Message<T>` or `None` for empty message.
+    /// Get a reference to the data held in a [`Message<T>`] or `None` for empty message.
     pub fn data(&self) -> Option<&T> {
         self.data.as_ref()
     }
 
-    /// Get a `Message`'s timestamp corresponding to the time the `Message` was created.
+    /// Get a [`Message`]'s timestamp corresponding to the time the [`Message`] was created.
     pub fn stamp(&self) -> DateTime<Utc> {
         self.header.stamp
     }
 }
 
-/// A header that is attached to every `Message<T>`.  Currently, just contains a timestamp.
+/// A header that is attached to every [`Message<T>`].  Currently, just contains a timestamp.
 #[derive(Serialize, Deserialize, Debug)]
 struct Header {
     stamp: DateTime<Utc>,
@@ -90,7 +90,7 @@ impl Header {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Empty;
 
-/// Error type representing all possible errors that can occur with `Message<T>`s
+/// Error type representing all possible errors that can occur with [`Message<T>`]s
 /// and related functions and methods.
 #[derive(Debug)]
 pub enum MessageError {
@@ -110,5 +110,5 @@ impl From<std::str::Utf8Error> for MessageError {
     }
 }
 
-/// A specialized `Result` type for `Message<T>` operations.
+/// A specialized [`Result`] type for [`Message<T>`] operations.
 pub type Result<T> = std::result::Result<T, MessageError>;

@@ -20,7 +20,7 @@ async fn main() {
 
     let mut sub: Subscriber<String> = Subscriber::new(&topic).await.unwrap();
     tokio::spawn(async move {
-        sub.listen(echo_cb).await.unwrap();
+        sub.listen(latency_cb).await.unwrap();
     });
     loop {}
 }

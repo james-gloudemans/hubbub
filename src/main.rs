@@ -61,7 +61,7 @@ async fn process_new_node(mut stream: TcpStream, hub: Arc<Hub>) {
     }
 }
 
-/// The master `Hub` that manages connections between Hubbub nodes and tracks them
+/// The master [`Hub`] that manages connections between Hubbub nodes and tracks them
 /// for introspection of the Hubbub graph.
 struct Hub {
     address: SocketAddr,
@@ -70,10 +70,10 @@ struct Hub {
 }
 
 impl Hub {
-    /// Construct a new `Hub`listening on the given IP address `addr`
+    /// Construct a new [`Hub`]listening on the given IP address `addr`
     ///
     /// # Panics
-    /// Panics if the given IP address is malformed or if the TcpListener fails to bind
+    /// Panics if the given IP address is malformed or if the [`TcpListener`] fails to bind
     /// to the address.
     async fn new(addr: &str) -> Self {
         let address: SocketAddr = addr.parse().expect("Malformed IP address.");
@@ -85,10 +85,10 @@ impl Hub {
         }
     }
 
-    /// Listen for incoming connections to the `Hub`.
+    /// Listen for incoming connections to the [`Hub`].
     ///
     /// This function will yield once a new TCP connection is established.
-    /// When established, the corresponding TcpStream and the remote peer's
+    /// When established, the corresponding [`TcpStream`] and the remote peer's
     /// address will be returned.
     async fn listen(&self) -> tokio::io::Result<(TcpStream, SocketAddr)> {
         self.listener.accept().await

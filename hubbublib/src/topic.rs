@@ -22,27 +22,27 @@ impl Topic {
         }
     }
 
-    /// Get an iterator over the writer for each subscriber to a `Topic`.
+    /// Get an iterator over the writer for each subscriber to a [`Topic`].
     pub fn subscribers(&self) -> std::slice::Iter<HubWriter> {
         self.subscribers.iter()
     }
 
-    /// Get an iterator over the reader for each publisher to a `Topic`.
+    /// Get an iterator over the reader for each publisher to a [`Topic`].
     pub fn publishers(&self) -> std::slice::Iter<HubReader> {
         self.publishers.iter()
     }
 
-    /// Add a new subscriber to a `Topic`.
+    /// Add a new subscriber to a [`Topic`].
     pub fn add_subscriber(&mut self, stream: TcpStream) {
         self.subscribers.push(HubWriter::new(stream));
     }
 
-    /// Add a new publisher to a `Topic`.
+    /// Add a new publisher to a [`Topic`].
     pub fn add_publisher(&mut self, stream: TcpStream) {
         self.publishers.push(HubReader::new(stream));
     }
 
-    /// Push a message out to all subscribers to a `Topic`.
+    /// Push a message out to all subscribers to a [`Topic`].
     pub async fn publish(&mut self, message: Bytes) -> tokio::io::Result<()> {
         for sub in self.subscribers.iter_mut() {
             sub.write(&message).await?;

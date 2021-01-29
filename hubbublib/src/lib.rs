@@ -12,20 +12,20 @@ pub mod hcl;
 pub mod msg;
 pub mod topic;
 
-/// A thin wrapper around `tokio::net::TcpStream` to simplify writing to the stream.
+/// A thin wrapper around [`tokio::net::TcpStream`] to simplify writing to the stream.
 pub struct HubWriter {
     stream: BufWriter<TcpStream>,
 }
 
 impl HubWriter {
-    /// Construct a new `HubWriter`.
+    /// Construct a new [`HubWriter`].
     pub fn new(stream: TcpStream) -> Self {
         Self {
             stream: BufWriter::new(stream),
         }
     }
 
-    /// Consume this object and return the contained `tokio::net::TcpStream`.
+    /// Consume this object and return the contained [`tokio::net::TcpStream`].
     pub fn into_inner(self) -> TcpStream {
         self.stream.into_inner()
     }
@@ -33,7 +33,7 @@ impl HubWriter {
     /// Write `message` to the stream.
     ///
     /// # Errors
-    /// Returns `Err` if any of the write operations fail.
+    /// Returns [`Err`] if any of the write operations fail.
     pub async fn write(&mut self, message: &Bytes) -> tokio::io::Result<()> {
         self.stream.write_all(message).await?;
         self.stream.flush().await?;
@@ -41,13 +41,13 @@ impl HubWriter {
     }
 }
 
-/// A thin wrapper around `tokio::net::TcpStream` to simplify reading from the stream.
+/// A thin wrapper around [`tokio::net::TcpStream`] to simplify reading from the stream.
 pub struct HubReader {
     stream: BufReader<TcpStream>,
 }
 
 impl HubReader {
-    /// Construct a new `HubReader`.
+    /// Construct a new [`HubReader`].
     pub fn new(stream: TcpStream) -> Self {
         Self {
             stream: BufReader::new(stream),
@@ -56,11 +56,11 @@ impl HubReader {
 
     /// Read and return a message from the stream.
     ///
-    /// Since this uses `tokkio::io::BufReader::read_line()`, this will read up to the
+    /// Since this uses [`AsyncBufReadExt::read_line()`], this will read up to the
     /// first newline character.
     ///
     /// # Errors
-    /// Returns `Err` if any of the underlying read operations fail.
+    /// Returns [`Err`] if any of the underlying read operations fail.
     pub async fn read(&mut self) -> tokio::io::Result<Bytes> {
         let mut buf = String::new();
         self.stream
