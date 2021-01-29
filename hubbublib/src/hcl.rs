@@ -4,6 +4,8 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::str::from_utf8;
 
+use std::cell::RefCell;
+
 use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -16,8 +18,8 @@ use crate::{HubReader, HubWriter, NodeEntity};
 pub struct Node<T> {
     pub userdata: T,
     name: String,
-    subscriptions: HashSet<String>,
-    publishers: HashSet<String>,
+    subscriptions: RefCell<HashSet<String>>,
+    publishers: RefCell<HashSet<String>>,
 }
 
 impl<T> Node<T> {
@@ -29,8 +31,8 @@ impl<T> Node<T> {
         Self {
             userdata,
             name: String::from(name),
-            subscriptions: HashSet::new(),
-            publishers: HashSet::new(),
+            subscriptions: RefCell::new(HashSet::new()),
+            publishers: RefCell::new(HashSet::new()),
         }
     }
 
@@ -39,23 +41,28 @@ impl<T> Node<T> {
         &self.name
     }
 
-    /// Get an iterator over the topic names for each subscriber on a [`Node`].
-    pub fn subscriptions(&self) -> std::collections::hash_set::Iter<String> {
-        self.subscriptions.iter()
-    }
+    // TODO
+    // /// Get an iterator over the topic names for each subscriber on a [`Node`].
+    // pub fn subscriptions(&self) -> std::collections::hash_set::Iter<String> {
+    //     let mut res: HashSet<String> = HashSet::new();
+    //     for topic_name in self.subscriptions.borrow().iter() {
+    //         res.insert(String::from(topic_name));
+    //     }
+    //     res.iter();
+    // }
 
-    /// Get an iterator over the topic names for each publisher on a [`Node`].
-    pub fn publishers(&self) -> std::collections::hash_set::Iter<String> {
-        self.publishers.iter()
-    }
+    // /// Get an iterator over the topic names for each publisher on a [`Node`].
+    // pub fn publishers(&self) -> std::collections::hash_set::Iter<String> {
+    //     self.publishers.borrow().iter()
+    // }
 
     /// Create a new publisher on this [`Node`] and return it.
-    pub async fn create_publisher<M>(&mut self, topic: &str) -> Result<Publisher<M>>
+    pub async fn create_publisher<'a, M>(&'a self, topic: &str) -> Result<Publisher<'a, T, M>>
     where
         M: Serialize + DeserializeOwned,
     {
-        if self.publishers.insert(String::from(topic)) {
-            Ok(Publisher::new(topic).await?)
+        if self.publishers.borrow_mut().insert(String::from(topic)) {
+            Ok(Publisher::new(topic, &self.userdata).await?)
         } else {
             Err(HubbubError::DuplicatePublisher {
                 topic: String::from(topic),
@@ -64,12 +71,12 @@ impl<T> Node<T> {
     }
 
     /// Create a new subscriber on this [`Node`] and return it.
-    pub async fn create_subscriber<M>(&mut self, topic: &str) -> Result<Subscriber<M>>
+    pub async fn create_subscriber<'a, M>(&'a self, topic: &str) -> Result<Subscriber<'a, T, M>>
     where
         M: Serialize + DeserializeOwned,
     {
-        if self.subscriptions.insert(String::from(topic)) {
-            Ok(Subscriber::new(topic).await?)
+        if self.subscriptions.borrow_mut().insert(String::from(topic)) {
+            Ok(Subscriber::new(topic, &self.userdata).await?)
         } else {
             Err(HubbubError::DuplicateSubscriber {
                 topic: String::from(topic),
@@ -115,13 +122,14 @@ impl<T> Node<T> {
 ///     }
 /// }
 /// ```
-pub struct Publisher<T> {
+pub struct Publisher<'a, U, T> {
     topic_name: String,
     writer: HubWriter,
+    owner_userdata: &'a U,
     phantom_msg_type: PhantomData<T>,
 }
 
-impl<T> Publisher<T>
+impl<'a, U, T> Publisher<'a, U, T>
 where
     T: Serialize + DeserializeOwned,
 {
@@ -143,7 +151,7 @@ where
     ///     let mut publ: Publisher<String> = Publisher::new("topic").await.expect("Failed to connect to the Hub.");
     /// }
     /// ```
-    pub async fn new(topic_name: &str) -> Result<Self> {
+    async fn new(topic_name: &str, owner_userdata: &'a U) -> Result<Publisher<'a, U, T>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
         let greeting = Message::new(Some(NodeEntity::Publisher {
@@ -153,6 +161,7 @@ where
         Ok(Self {
             topic_name: String::from(topic_name),
             writer,
+            owner_userdata,
             phantom_msg_type: PhantomData,
         })
     }
@@ -207,13 +216,14 @@ where
 ///     println!("Received message: '{}'", msg.data().unwrap_or(&String::from("")));
 /// }
 /// ```
-pub struct Subscriber<T> {
+pub struct Subscriber<'a, U, T> {
     topic_name: String,
     reader: HubReader,
+    owner_userdata: &'a U,
     phantom_msg_type: PhantomData<T>,
 }
 
-impl<T> Subscriber<T>
+impl<'a, U, T> Subscriber<'a, U, T>
 where
     T: Serialize + DeserializeOwned,
 {
@@ -231,7 +241,7 @@ where
     ///     let mut publ: Subscriber<String> = Subscriber::new("topic").await.expect("Failed to connect to the Hub.");
     /// }
     /// ```
-    pub async fn new(topic_name: &str) -> Result<Self> {
+    async fn new(topic_name: &str, owner_userdata: &'a U) -> Result<Subscriber<'a, U, T>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
         let greeting = Message::new(Some(NodeEntity::Subscriber {
@@ -242,6 +252,7 @@ where
         Ok(Self {
             topic_name: String::from(topic_name),
             reader,
+            owner_userdata,
             phantom_msg_type: PhantomData,
         })
     }
@@ -258,11 +269,13 @@ where
     /// operations fail (typically due to disconnection).
     pub async fn listen<F>(&mut self, callback: F) -> Result<()>
     where
-        F: Fn(&Message<T>) -> (),
+        F: Fn(&Message<T>) -> () + Send + 'static + Copy,
     {
         loop {
             match self.reader.read().await {
-                Ok(buf) => callback(&Message::from_bytes(&buf)?),
+                Ok(buf) => tokio::spawn(async move {
+                    callback(&Message::from_bytes(&buf).unwrap());
+                }),
                 Err(e) => return Err(HubbubError::from(e)),
             };
         }
