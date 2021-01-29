@@ -35,7 +35,7 @@ async fn main() {
     }
 
     let mut msg_counter = Counter { count: 0 };
-    let node = Node::new("Listener", msg_counter);
+    let node = Node::new("Listener");
     let mut sub = node.create_subscriber(&topic).await.unwrap();
     sub.listen(|msg| msg_counter.count_and_echo(msg))
         .await
@@ -43,8 +43,8 @@ async fn main() {
     // tokio::spawn(async move {
     //     sub.listen(echo_cb).await.unwrap();
     // });
-    // println!("Node '{}' is listening...", node.name());
-    // loop {}
+    println!("Node '{}' is listening...", node.name());
+    loop {}
 }
 
 fn echo_cb(msg: &Message<String>) {

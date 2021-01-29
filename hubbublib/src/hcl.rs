@@ -15,21 +15,19 @@ use crate::msg::{Message, MessageError};
 use crate::{HubReader, HubWriter, NodeEntity};
 
 /// A node in the Hubbub network
-pub struct Node<T> {
-    pub userdata: T,
+pub struct Node {
     name: String,
     subscriptions: RefCell<HashSet<String>>,
     publishers: RefCell<HashSet<String>>,
 }
 
-impl<T> Node<T> {
+impl Node {
     /// Construct a new [`Node`] with the given `name`.
-    pub fn new(name: &str, userdata: T) -> Self {
+    pub fn new(name: &str) -> Self {
         // TODO: Connect to Hub and have master track nodes for introspection.
         // TODO Idea: Upon connection to Hub, keep stream and share it with all
         // connected entities.
         Self {
-            userdata,
             name: String::from(name),
             subscriptions: RefCell::new(HashSet::new()),
             publishers: RefCell::new(HashSet::new()),
@@ -57,12 +55,12 @@ impl<T> Node<T> {
     // }
 
     /// Create a new publisher on this [`Node`] and return it.
-    pub async fn create_publisher<'a, M>(&'a self, topic: &str) -> Result<Publisher<'a, T, M>>
+    pub async fn create_publisher<M>(&self, topic: &str) -> Result<Publisher<M>>
     where
         M: Serialize + DeserializeOwned,
     {
         if self.publishers.borrow_mut().insert(String::from(topic)) {
-            Ok(Publisher::new(topic, &self.userdata).await?)
+            Ok(Publisher::new(topic).await?)
         } else {
             Err(HubbubError::DuplicatePublisher {
                 topic: String::from(topic),
@@ -71,12 +69,12 @@ impl<T> Node<T> {
     }
 
     /// Create a new subscriber on this [`Node`] and return it.
-    pub async fn create_subscriber<'a, M>(&'a self, topic: &str) -> Result<Subscriber<'a, T, M>>
+    pub async fn create_subscriber<M>(&self, topic: &str) -> Result<Subscriber<M>>
     where
         M: Serialize + DeserializeOwned,
     {
         if self.subscriptions.borrow_mut().insert(String::from(topic)) {
-            Ok(Subscriber::new(topic, &self.userdata).await?)
+            Ok(Subscriber::new(topic).await?)
         } else {
             Err(HubbubError::DuplicateSubscriber {
                 topic: String::from(topic),
@@ -122,14 +120,13 @@ impl<T> Node<T> {
 ///     }
 /// }
 /// ```
-pub struct Publisher<'a, U, T> {
+pub struct Publisher<T> {
     topic_name: String,
     writer: HubWriter,
-    owner_userdata: &'a U,
     phantom_msg_type: PhantomData<T>,
 }
 
-impl<'a, U, T> Publisher<'a, U, T>
+impl<T> Publisher<T>
 where
     T: Serialize + DeserializeOwned,
 {
@@ -151,7 +148,7 @@ where
     ///     let mut publ: Publisher<String> = Publisher::new("topic").await.expect("Failed to connect to the Hub.");
     /// }
     /// ```
-    async fn new(topic_name: &str, owner_userdata: &'a U) -> Result<Publisher<'a, U, T>> {
+    async fn new(topic_name: &str) -> Result<Publisher<T>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
         let greeting = Message::new(Some(NodeEntity::Publisher {
@@ -161,7 +158,6 @@ where
         Ok(Self {
             topic_name: String::from(topic_name),
             writer,
-            owner_userdata,
             phantom_msg_type: PhantomData,
         })
     }
@@ -216,14 +212,13 @@ where
 ///     println!("Received message: '{}'", msg.data().unwrap_or(&String::from("")));
 /// }
 /// ```
-pub struct Subscriber<'a, U, T> {
+pub struct Subscriber<T> {
     topic_name: String,
     reader: HubReader,
-    owner_userdata: &'a U,
     phantom_msg_type: PhantomData<T>,
 }
 
-impl<'a, U, T> Subscriber<'a, U, T>
+impl<T> Subscriber<T>
 where
     T: Serialize + DeserializeOwned,
 {
@@ -241,7 +236,7 @@ where
     ///     let mut publ: Subscriber<String> = Subscriber::new("topic").await.expect("Failed to connect to the Hub.");
     /// }
     /// ```
-    async fn new(topic_name: &str, owner_userdata: &'a U) -> Result<Subscriber<'a, U, T>> {
+    async fn new(topic_name: &str) -> Result<Subscriber<T>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
         let greeting = Message::new(Some(NodeEntity::Subscriber {
@@ -252,7 +247,6 @@ where
         Ok(Self {
             topic_name: String::from(topic_name),
             reader,
-            owner_userdata,
             phantom_msg_type: PhantomData,
         })
     }
@@ -269,7 +263,7 @@ where
     /// operations fail (typically due to disconnection).
     pub async fn listen<F>(&mut self, mut callback: F) -> Result<()>
     where
-        F: FnMut(&Message<T>) -> (), /* + Send + 'static + Copy,*/
+        F: FnMut(&Message<T>) -> (),
     {
         loop {
             match self.reader.read().await {

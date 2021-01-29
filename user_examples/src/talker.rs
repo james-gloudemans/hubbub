@@ -5,10 +5,6 @@ use tokio::time;
 
 use hubbublib::hcl::Node;
 
-pub struct TalkerData {
-    foo: bool,
-}
-
 #[tokio::main]
 async fn main() {
     // CL arg parsing
@@ -25,7 +21,7 @@ async fn main() {
         }
     }
 
-    let node = Node::new("Talker", TalkerData { foo: true });
+    let node = Node::new("Talker");
     let mut publ = node.create_publisher(&topic).await.unwrap();
     for i in 1u32.. {
         time::sleep(time::Duration::from_micros(1)).await;
