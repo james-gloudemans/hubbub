@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_imports, unused_variables)]
 use chrono::{Duration, Utc};
+use tokio::time;
 
 use hubbublib::hcl::Node;
 use hubbublib::msg::Message;
@@ -17,6 +18,10 @@ impl Counter {
             msg.data().unwrap_or(&String::from("")),
             self.count
         );
+    }
+
+    pub fn count(&self) -> &usize {
+        &self.count
     }
 }
 
@@ -37,14 +42,16 @@ async fn main() {
     let mut msg_counter = Counter { count: 0 };
     let node = Node::new("Listener");
     let mut sub = node.create_subscriber(&topic).await.unwrap();
-    sub.listen(|msg| msg_counter.count_and_echo(msg))
-        .await
-        .unwrap();
-    // tokio::spawn(async move {
-    //     sub.listen(echo_cb).await.unwrap();
-    // });
+    tokio::spawn(async move {
+        sub.listen(|msg| msg_counter.count_and_echo(msg))
+            .await
+            .unwrap();
+    });
     println!("Node '{}' is listening...", node.name());
-    loop {}
+    loop {
+        time::sleep(time::Duration::from_secs(5)).await;
+        println!("Current count is {}", msg_counter.count());
+    }
 }
 
 fn echo_cb(msg: &Message<String>) {
