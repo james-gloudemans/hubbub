@@ -267,15 +267,13 @@ where
     /// # Errors
     /// Returns [`Err`] if the message fails to deserialize or if the underlying read
     /// operations fail (typically due to disconnection).
-    pub async fn listen<F>(&mut self, callback: F) -> Result<()>
+    pub async fn listen<F>(&mut self, mut callback: F) -> Result<()>
     where
-        F: Fn(&Message<T>) -> () + Send + 'static + Copy,
+        F: FnMut(&Message<T>) -> (), /* + Send + 'static + Copy,*/
     {
         loop {
             match self.reader.read().await {
-                Ok(buf) => tokio::spawn(async move {
-                    callback(&Message::from_bytes(&buf).unwrap());
-                }),
+                Ok(buf) => callback(&Message::from_bytes(&buf).unwrap()),
                 Err(e) => return Err(HubbubError::from(e)),
             };
         }

@@ -4,8 +4,20 @@ use chrono::{Duration, Utc};
 use hubbublib::hcl::Node;
 use hubbublib::msg::Message;
 
+#[derive(Debug, Copy, Clone)]
 pub struct Counter {
-    pub count: usize,
+    count: usize,
+}
+
+impl Counter {
+    pub fn count_and_echo(&mut self, msg: &Message<String>) {
+        self.count += 1;
+        println!(
+            "Received message: '{}', count = {}",
+            msg.data().unwrap_or(&String::from("")),
+            self.count
+        );
+    }
 }
 
 #[tokio::main]
@@ -22,10 +34,12 @@ async fn main() {
         }
     }
 
-    let msg_counter = Counter { count: 0 };
+    let mut msg_counter = Counter { count: 0 };
     let node = Node::new("Listener", msg_counter);
     let mut sub = node.create_subscriber(&topic).await.unwrap();
-    sub.listen(echo_cb).await.unwrap();
+    sub.listen(|msg| msg_counter.count_and_echo(msg))
+        .await
+        .unwrap();
     // tokio::spawn(async move {
     //     sub.listen(echo_cb).await.unwrap();
     // });

@@ -28,7 +28,7 @@ async fn main() {
     let node = Node::new("Talker", TalkerData { foo: true });
     let mut publ = node.create_publisher(&topic).await.unwrap();
     for i in 1u32.. {
-        time::sleep(time::Duration::from_secs(1)).await;
+        time::sleep(time::Duration::from_micros(1)).await;
         let next_msg = format!("{}", message);
         println!("Sending message: '{}'", &next_msg);
         publ.publish(next_msg).await.unwrap();
