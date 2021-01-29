@@ -1,12 +1,26 @@
 [package]
 authors = ["James Gloudemans <james.gloudemans@gmail.com>"]
+default-run = "hubbub"
 edition = "2018"
 name = "hubbub"
 version = "0.1.0"
 
 [dependencies]
 bytes = "^1"
+chrono = {version = "0.4", features = ["serde"]}
 dashmap = "^4"
 hubbublib = {path = "./hubbublib"}
 serde_json = "^1.0"
 tokio = {version = "1", features = ["full"]}
+
+[[bin]]
+name = "hubbub"
+path = "src/main.rs"
+
+[[bin]]
+name = "talker"
+path = "user_examples/src/talker.rs"
+
+[[bin]]
+name = "listener"
+path = "user_examples/src/listener.rs"
