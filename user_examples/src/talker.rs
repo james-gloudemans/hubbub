@@ -3,7 +3,11 @@ use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::net::TcpStream;
 use tokio::time;
 
-use hubbublib::hcl::Publisher;
+use hubbublib::hcl::Node;
+
+pub struct TalkerData {
+    foo: bool,
+}
 
 #[tokio::main]
 async fn main() {
@@ -21,11 +25,11 @@ async fn main() {
         }
     }
 
-    // To be replaced by client code
-    let mut publ: Publisher<String> = Publisher::new(&topic).await.unwrap();
+    let node = Node::new("Talker", TalkerData { foo: true });
+    let mut publ = node.create_publisher(&topic).await.unwrap();
     for i in 1u32.. {
         time::sleep(time::Duration::from_secs(1)).await;
-        let next_msg = format!("{} {}", message, i);
+        let next_msg = format!("{}", message);
         println!("Sending message: '{}'", &next_msg);
         publ.publish(next_msg).await.unwrap();
     }

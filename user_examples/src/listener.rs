@@ -1,8 +1,12 @@
 #![allow(dead_code, unused_imports, unused_variables)]
 use chrono::{Duration, Utc};
 
-use hubbublib::hcl::Subscriber;
+use hubbublib::hcl::Node;
 use hubbublib::msg::Message;
+
+pub struct Counter {
+    pub count: usize,
+}
 
 #[tokio::main]
 async fn main() {
@@ -18,11 +22,15 @@ async fn main() {
         }
     }
 
-    let mut sub: Subscriber<String> = Subscriber::new(&topic).await.unwrap();
-    tokio::spawn(async move {
-        sub.listen(latency_cb).await.unwrap();
-    });
-    loop {}
+    let msg_counter = Counter { count: 0 };
+    let node = Node::new("Listener", msg_counter);
+    let mut sub = node.create_subscriber(&topic).await.unwrap();
+    sub.listen(echo_cb).await.unwrap();
+    // tokio::spawn(async move {
+    //     sub.listen(echo_cb).await.unwrap();
+    // });
+    // println!("Node '{}' is listening...", node.name());
+    // loop {}
 }
 
 fn echo_cb(msg: &Message<String>) {
