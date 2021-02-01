@@ -26,7 +26,7 @@ async fn main() {
     for i in 1u32.. {
         time::sleep(time::Duration::from_millis(100)).await;
         let next_msg = format!("{}", message);
-        println!("Sending message: '{}'", &next_msg);
+        println!("Sending message: '{}', message count: {}", &next_msg, i);
         publ.publish(next_msg).await.unwrap();
     }
 }
