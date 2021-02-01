@@ -20,7 +20,6 @@ impl<T> Message<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    // TODO: see if empty messages can be created with Message<()> somehow.
     /// Construct a new [`Message<T>`].
     ///
     /// Messages should be sent as soon as possible after they are created to ensure
