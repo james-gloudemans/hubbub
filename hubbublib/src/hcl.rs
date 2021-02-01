@@ -2,20 +2,22 @@
 // #![allow(dead_code, unused_imports, unused_variables)]
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::str::from_utf8;
-
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use bytes::Bytes;
 use dashmap::DashSet;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
 
 use crate::msg::{Message, MessageError};
 use crate::{HubReader, HubWriter, NodeEntity};
 
 /// A node in the Hubbub network
+#[derive(Debug)]
 pub struct Node {
     name: String,
     subscriptions: DashSet<String>,
@@ -70,17 +72,53 @@ impl Node {
     }
 
     /// Create a new subscriber on this [`Node`] and return it.
-    pub async fn create_subscriber<M>(&self, topic: &str) -> Result<Subscriber<M>>
+    pub async fn create_subscriber<M, R>(&self, topic: String, receiver: R) -> Result<UserData<R>>
     where
-        M: Serialize + DeserializeOwned,
+        M: Serialize + DeserializeOwned + Send + 'static,
+        R: Receiver<M> + Send + 'static,
     {
-        if self.subscriptions.insert(String::from(topic)) {
-            Ok(Subscriber::new(topic).await?)
+        if self.subscriptions.insert(String::from(&topic)) {
+            let receiver = Arc::new(Mutex::new(receiver));
+            let mut sub = Subscriber::new(topic, Arc::clone(&receiver)).await.unwrap();
+            Ok(UserData::new(
+                tokio::spawn(async move {
+                    sub.listen().await.unwrap();
+                }),
+                Arc::clone(&receiver),
+            ))
         } else {
             Err(HubbubError::DuplicateSubscriber {
                 topic: String::from(topic),
             })
         }
+    }
+}
+
+pub struct UserDataRef<'a, T>(MutexGuard<'a, T>);
+
+impl<'a, T> Deref for UserDataRef<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+pub struct UserData<T> {
+    thread_handle: JoinHandle<()>,
+    userdata: Arc<Mutex<T>>,
+}
+
+impl<T> UserData<T> {
+    pub fn new(thread_handle: JoinHandle<()>, userdata: Arc<Mutex<T>>) -> Self {
+        Self {
+            thread_handle,
+            userdata,
+        }
+    }
+
+    pub fn get<'a>(&'a self) -> UserDataRef<'a, T> {
+        let ud = self.userdata.lock().unwrap();
+        UserDataRef(ud)
     }
 }
 
@@ -213,15 +251,24 @@ where
 ///     println!("Received message: '{}'", msg.data().unwrap_or(&String::from("")));
 /// }
 /// ```
-pub struct Subscriber<T> {
-    topic_name: String,
-    reader: HubReader,
-    phantom_msg_type: PhantomData<T>,
+pub trait Receiver<M> {
+    fn callback(&mut self, msg: &Message<M>);
 }
 
-impl<T> Subscriber<T>
+pub struct Subscriber<M, R>
 where
-    T: Serialize + DeserializeOwned,
+    R: Receiver<M>,
+{
+    receiver: Arc<Mutex<R>>,
+    topic_name: String,
+    reader: HubReader,
+    phantom_msg_type: PhantomData<M>,
+}
+
+impl<M, R> Subscriber<M, R>
+where
+    M: Serialize + DeserializeOwned + Send,
+    R: Receiver<M> + Send,
 {
     /// Construct a [`Subscriber<T>`] to listen for [`Message<T>`]s on a given topic.
     ///
@@ -237,16 +284,17 @@ where
     ///     let mut publ: Subscriber<String> = Subscriber::new("topic").await.expect("Failed to connect to the Hub.");
     /// }
     /// ```
-    async fn new(topic_name: &str) -> Result<Subscriber<T>> {
+    async fn new(topic_name: String, receiver: Arc<Mutex<R>>) -> Result<Subscriber<M, R>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
         let greeting = Message::new(Some(NodeEntity::Subscriber {
-            topic_name: String::from(topic_name),
+            topic_name: String::from(&topic_name),
         }));
         writer.write(&greeting.as_bytes()?).await?;
         let reader = HubReader::new(writer.into_inner());
         Ok(Self {
-            topic_name: String::from(topic_name),
+            receiver,
+            topic_name,
             reader,
             phantom_msg_type: PhantomData,
         })
@@ -262,14 +310,15 @@ where
     /// # Errors
     /// Returns [`Err`] if the message fails to deserialize or if the underlying read
     /// operations fail (typically due to disconnection).
-    pub async fn listen<F>(&mut self, mut callback: F) -> Result<()>
-    where
-        F: FnMut(&Message<T>) -> (),
-    {
+    pub async fn listen(&mut self) -> Result<()> {
         loop {
             match self.reader.read().await {
-                Ok(buf) => callback(&Message::from_bytes(&buf).unwrap()),
-                Err(e) => return Err(HubbubError::from(e)),
+                Ok(buf) => self
+                    .receiver
+                    .lock()
+                    .unwrap()
+                    .callback(&Message::from_bytes(&buf).unwrap()),
+                Err(e) => {} //return Err(HubbubError::from(e)),
             };
         }
     }
