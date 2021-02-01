@@ -22,6 +22,29 @@ impl Counter {
         );
     }
 
+    pub fn increment_count(&mut self, msg: &Message<String>) {
+        self.count += 1;
+    }
+
+    pub fn count_latency_and_echo(&mut self, msg: &Message<String>) {
+        self.count += 1;
+        let latency: Duration = Utc::now() - msg.stamp();
+        let latency_disp: String;
+        if latency < Duration::milliseconds(1) {
+            latency_disp = format!("{} us", latency.num_microseconds().unwrap());
+        } else if latency < Duration::seconds(1) {
+            latency_disp = format!("{} ms", latency.num_milliseconds());
+        } else {
+            latency_disp = format!("{} s", latency.num_seconds());
+        }
+        println!(
+            "Received message: '{}', count: {}, latency: {}",
+            msg.data().unwrap_or(&String::from("")),
+            self.count,
+            latency_disp
+        );
+    }
+
     pub fn count(&self) -> &usize {
         &self.count
     }
@@ -29,7 +52,7 @@ impl Counter {
 
 impl Receiver<String> for Counter {
     fn callback(&mut self, msg: &Message<String>) {
-        self.count_and_echo(msg);
+        self.increment_count(msg);
     }
 }
 
@@ -52,7 +75,7 @@ async fn main() {
     let sub = node.create_subscriber(topic, msg_counter).await.unwrap();
     println!("Node '{}' is listening...", node.name());
     loop {
-        time::sleep(time::Duration::from_secs(5)).await;
+        time::sleep(time::Duration::from_secs(1)).await;
         let counter = sub.get();
         println!("Current count is {}", counter.count());
     }
