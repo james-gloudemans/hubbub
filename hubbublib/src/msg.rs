@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// A message used to exhange Rust data structures between Hubbub nodes.
 ///
-/// Can contain any type that `derive`s [`serde`]'s [`Serialize`] and [`Deserialize`] traits,
+/// Can contain any type that derives [`serde`]'s [`Serialize`] and [`Deserialize`] traits,
 /// or empty ([`None`]).
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message<T> {
