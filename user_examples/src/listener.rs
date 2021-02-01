@@ -13,11 +13,7 @@ pub struct Counter {
 impl Counter {
     pub fn count_and_echo(&mut self, msg: &Message<String>) {
         self.count += 1;
-        println!(
-            "Received message: '{}', count = {}",
-            msg.data().unwrap_or(&String::from("")),
-            self.count
-        );
+        println!("Received message: '{}', count = {}", msg.data(), self.count);
     }
 
     pub fn count(&self) -> &usize {
@@ -55,10 +51,7 @@ async fn main() {
 }
 
 fn echo_cb(msg: &Message<String>) {
-    println!(
-        "Received message: '{}'",
-        msg.data().unwrap_or(&String::from(""))
-    );
+    println!("Received message: '{}'", msg.data());
 }
 
 fn latency_cb(msg: &Message<String>) {
@@ -73,7 +66,7 @@ fn latency_cb(msg: &Message<String>) {
     }
     println!(
         "Received message: '{}', latency: {}",
-        msg.data().unwrap_or(&String::from("")),
+        msg.data(),
         latency_disp
     );
 }

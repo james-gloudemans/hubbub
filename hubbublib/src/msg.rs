@@ -13,28 +13,26 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message<T> {
     header: Header,
-    data: Option<T>,
+    data: T,
 }
 
 impl<T> Message<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    // TODO: see if empty messages can be created with Message<()> somehow.
     /// Construct a new [`Message<T>`].
     ///
     /// Messages should be sent as soon as possible after they are created to ensure
     /// that they receive an accurate timestamp.
     /// # Examples
     /// ```
-    /// use hubbublib::msg::{Empty, Message};
+    /// use hubbublib::msg::Message;
     ///
     /// let msg: Message<String> = Message::new(Some(String::from("Hello Hubbub!")));
-    /// // Empty messages are created this way for now.  Will change if
-    /// // experimental type `!` is added to stable Rust.
-    /// let empty: Message<Empty> = Message::new(None);
+    /// // Empty messages are created with the `()` type.
+    /// let empty: Message<()> = Message::new(());
     /// ```
-    pub fn new(data: Option<T>) -> Self {
+    pub fn new(data: T) -> Self {
         Self {
             header: Header::new(),
             data,
@@ -58,9 +56,9 @@ where
         Ok(serde_json::to_string(self).map(|s| Bytes::from(s + "\n"))?)
     }
 
-    /// Get a reference to the data held in a [`Message<T>`] or `None` for empty message.
-    pub fn data(&self) -> Option<&T> {
-        self.data.as_ref()
+    /// Get a reference to the data held in a [`Message<T>`].
+    pub fn data(&self) -> &T {
+        &self.data
     }
 
     /// Get a [`Message`]'s timestamp corresponding to the time the [`Message`] was created.
@@ -82,14 +80,6 @@ impl Header {
         Self { stamp: Utc::now() }
     }
 }
-
-/// Placeholder type for empty messages.
-/// # Examples
-/// use hubbublib::msg::{Empty, Message};
-///
-/// let empty: Message<Empty> = Message::new(None);
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Empty;
 
 /// Error type representing all possible errors that can occur with [`Message<T>`]s
 /// and related functions and methods.
