@@ -7,6 +7,7 @@ use std::str::from_utf8;
 use std::cell::RefCell;
 
 use bytes::Bytes;
+use dashmap::DashSet;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::net::TcpStream;
@@ -17,8 +18,8 @@ use crate::{HubReader, HubWriter, NodeEntity};
 /// A node in the Hubbub network
 pub struct Node {
     name: String,
-    subscriptions: RefCell<HashSet<String>>,
-    publishers: RefCell<HashSet<String>>,
+    subscriptions: DashSet<String>,
+    publishers: DashSet<String>,
 }
 
 impl Node {
@@ -29,8 +30,8 @@ impl Node {
         // connected entities.
         Self {
             name: String::from(name),
-            subscriptions: RefCell::new(HashSet::new()),
-            publishers: RefCell::new(HashSet::new()),
+            subscriptions: DashSet::new(),
+            publishers: DashSet::new(),
         }
     }
 
@@ -59,7 +60,7 @@ impl Node {
     where
         M: Serialize + DeserializeOwned,
     {
-        if self.publishers.borrow_mut().insert(String::from(topic)) {
+        if self.publishers.insert(String::from(topic)) {
             Ok(Publisher::new(topic).await?)
         } else {
             Err(HubbubError::DuplicatePublisher {
@@ -73,7 +74,7 @@ impl Node {
     where
         M: Serialize + DeserializeOwned,
     {
-        if self.subscriptions.borrow_mut().insert(String::from(topic)) {
+        if self.subscriptions.insert(String::from(topic)) {
             Ok(Subscriber::new(topic).await?)
         } else {
             Err(HubbubError::DuplicateSubscriber {
