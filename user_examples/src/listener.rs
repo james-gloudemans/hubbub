@@ -1,11 +1,13 @@
 #![allow(dead_code, unused_imports, unused_variables)]
+use std::sync::{Arc, Mutex};
+
 use chrono::{Duration, Utc};
 use tokio::time;
 
-use hubbublib::hcl::Node;
+use hubbublib::hcl::{Node, Receiver};
 use hubbublib::msg::Message;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct Counter {
     count: usize,
 }
@@ -16,8 +18,37 @@ impl Counter {
         println!("Received message: '{}', count = {}", msg.data(), self.count);
     }
 
+    pub fn increment_count(&mut self, msg: &Message<String>) {
+        self.count += 1;
+    }
+
+    pub fn count_latency_and_echo(&mut self, msg: &Message<String>) {
+        self.count += 1;
+        let latency: Duration = Utc::now() - msg.stamp();
+        let latency_disp: String;
+        if latency < Duration::milliseconds(1) {
+            latency_disp = format!("{} us", latency.num_microseconds().unwrap());
+        } else if latency < Duration::seconds(1) {
+            latency_disp = format!("{} ms", latency.num_milliseconds());
+        } else {
+            latency_disp = format!("{} s", latency.num_seconds());
+        }
+        println!(
+            "Received message: '{}', count: {}, latency: {}",
+            msg.data(),
+            self.count,
+            latency_disp
+        );
+    }
+
     pub fn count(&self) -> &usize {
         &self.count
+    }
+}
+
+impl Receiver<String> for Counter {
+    fn callback(&mut self, msg: &Message<String>) {
+        self.count_and_echo(msg);
     }
 }
 
@@ -35,18 +66,13 @@ async fn main() {
         }
     }
 
-    let mut msg_counter = Counter { count: 0 };
     let node = Node::new("Listener");
-    let mut sub = node.create_subscriber(&topic).await.unwrap();
-    tokio::spawn(async move {
-        sub.listen(|msg| msg_counter.count_and_echo(msg))
-            .await
-            .unwrap();
-    });
+    let msg_counter = Counter { count: 0 };
+    let sub = node.create_subscriber(topic, msg_counter).await.unwrap();
     println!("Node '{}' is listening...", node.name());
     loop {
-        time::sleep(time::Duration::from_secs(5)).await;
-        println!("Current count is {}", msg_counter.count());
+        time::sleep(time::Duration::from_secs(1)).await;
+        println!("Current count is {}", sub.get().count());
     }
 }
 

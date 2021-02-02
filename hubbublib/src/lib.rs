@@ -13,6 +13,7 @@ pub mod msg;
 pub mod topic;
 
 /// A thin wrapper around [`tokio::net::TcpStream`] to simplify writing to the stream.
+#[derive(Debug)]
 pub struct HubWriter {
     stream: BufWriter<TcpStream>,
 }
@@ -64,6 +65,7 @@ impl HubWriter {
 }
 
 /// A thin wrapper around [`tokio::net::TcpStream`] to simplify reading from the stream.
+#[derive(Debug)]
 pub struct HubReader {
     stream: BufReader<TcpStream>,
 }

@@ -65,6 +65,7 @@ async fn process_new_node(mut stream: TcpStream, hub: Arc<Hub>) {
 
 /// The master [`Hub`] that manages connections between Hubbub nodes and tracks them
 /// for introspection of the Hubbub graph.
+#[derive(Debug)]
 struct Hub {
     address: SocketAddr,
     listener: TcpListener,

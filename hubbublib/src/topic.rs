@@ -9,6 +9,7 @@ use tokio::task::JoinHandle;
 use crate::{HubReader, HubWriter};
 
 /// A topic that is able to publish messages to all its subscribers
+#[derive(Debug)]
 pub struct Topic {
     subscribers: HashMap<String, HubWriter>,
     publishers: HashSet<String>,
