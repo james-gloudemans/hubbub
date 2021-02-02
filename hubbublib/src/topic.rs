@@ -43,10 +43,24 @@ impl Topic {
     }
 
     /// Push a message out to all subscribers to a [`Topic`].
+    ///
+    /// # Errors
+    /// Returns `Err` as soon as one of the writes fails.
     pub async fn publish(&mut self, message: Bytes) -> tokio::io::Result<()> {
-        for sub in self.subscribers.iter_mut() {
-            sub.write(&message).await?;
+        // `self.subscribers` will be drained into this `Vec`, retaining the subscribers
+        // that are still connected.  Initial capacity is the same as `self.subscribers` based
+        // on the assumption that disconnects will be rare compared to publishes.
+        let mut connected_subs: Vec<HubWriter> = Vec::with_capacity(self.subscribers.capacity());
+
+        // Write the message and check for a `BrokenPipe` error.  Drops the subscriber on
+        // `BrokenPipe`, returns other errors, and retains the subscriber if no error.
+        for mut sub in self.subscribers.drain(..) {
+            let broken_pipe = sub.write_and_check(&message).await?;
+            if !broken_pipe {
+                connected_subs.push(sub);
+            }
         }
+        self.subscribers = connected_subs;
         Ok(())
     }
 }
