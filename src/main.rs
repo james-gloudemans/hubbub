@@ -37,22 +37,28 @@ async fn process_new_node(mut stream: TcpStream, hub: Arc<Hub>) {
     match greeting.data() {
         // If publisher, listen for messages and push them to subscribers
         // TODO: add publisher to `Topic` on connection and remove on disconnect.
-        NodeEntity::Publisher { topic_name } => loop {
-            let mut buf = BytesMut::with_capacity(4096);
-            let size = stream.read_buf(&mut buf).await.unwrap();
-            if let Some(mut topic) = hub.topics.get_mut(topic_name) {
-                topic.publish(buf.freeze()).await.unwrap();
+        NodeEntity::Publisher {
+            node_name,
+            topic_name,
+        } => {
+            hub.add_publisher(node_name, topic_name);
+            loop {
+                let mut buf = BytesMut::with_capacity(4096);
+                if stream.read_buf(&mut buf).await.unwrap() == 0 {
+                    break;
+                } else {
+                    if let Some(mut topic) = hub.topics.get_mut(topic_name) {
+                        topic.publish(buf.freeze()).await.unwrap();
+                    }
+                }
             }
-        },
-        // If subscriber, register in hub.topics and return
-        NodeEntity::Subscriber { topic_name } => {
-            if let Some(mut topic) = hub.topics.get_mut(topic_name) {
-                topic.add_subscriber(stream);
-            } else {
-                let mut topic = Topic::new();
-                topic.add_subscriber(stream);
-                hub.topics.insert(topic_name.to_string(), topic);
-            }
+        }
+        // If subscriber, register in `hub` and return
+        NodeEntity::Subscriber {
+            node_name,
+            topic_name,
+        } => {
+            hub.add_subscriber(node_name, topic_name, stream);
         }
     }
 }
@@ -65,6 +71,7 @@ struct Hub {
     topics: Arc<DashMap<String, Topic>>,
 }
 
+// TODO: improve Hub API for introspection
 impl Hub {
     /// Construct a new [`Hub`]listening on the given IP address `addr`
     ///
@@ -79,6 +86,23 @@ impl Hub {
             listener,
             topics: Arc::new(DashMap::new()),
         }
+    }
+
+    /// Add a new publisher `hub`
+    fn add_publisher(&self, node_name: &str, topic_name: &str) {
+        if !self.topics.contains_key(topic_name) {
+            self.topics.insert(topic_name.to_string(), Topic::new());
+        }
+        let mut topic = self.topics.get_mut(topic_name).unwrap();
+        topic.add_publisher(node_name);
+    }
+
+    fn add_subscriber(&self, node_name: &str, topic_name: &str, stream: TcpStream) {
+        if !self.topics.contains_key(topic_name) {
+            self.topics.insert(topic_name.to_string(), Topic::new());
+        }
+        let mut topic = self.topics.get_mut(topic_name).unwrap();
+        topic.add_subscriber(node_name, stream);
     }
 
     /// Listen for incoming connections to the [`Hub`].

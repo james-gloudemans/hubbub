@@ -97,8 +97,14 @@ impl HubReader {
 /// immediately after connection.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum NodeEntity {
-    Publisher { topic_name: String },
-    Subscriber { topic_name: String },
+    Publisher {
+        node_name: String,
+        topic_name: String,
+    },
+    Subscriber {
+        node_name: String,
+        topic_name: String,
+    },
 }
 
 #[cfg(test)]

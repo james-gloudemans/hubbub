@@ -61,7 +61,7 @@ impl Node {
         M: Serialize + DeserializeOwned,
     {
         if self.publishers.insert(String::from(topic)) {
-            Ok(Publisher::new(topic).await?)
+            Ok(Publisher::new(self.name(), topic).await?)
         } else {
             Err(HubbubError::DuplicatePublisher {
                 topic: String::from(topic),
@@ -75,7 +75,7 @@ impl Node {
         M: Serialize + DeserializeOwned,
     {
         if self.subscriptions.insert(String::from(topic)) {
-            Ok(Subscriber::new(topic).await?)
+            Ok(Subscriber::new(self.name(), topic).await?)
         } else {
             Err(HubbubError::DuplicateSubscriber {
                 topic: String::from(topic),
@@ -122,6 +122,7 @@ impl Node {
 /// }
 /// ```
 pub struct Publisher<T> {
+    node_name: String,
     topic_name: String,
     writer: HubWriter,
     phantom_msg_type: PhantomData<T>,
@@ -149,14 +150,16 @@ where
     ///     let mut publ: Publisher<String> = Publisher::new("topic").await.expect("Failed to connect to the Hub.");
     /// }
     /// ```
-    async fn new(topic_name: &str) -> Result<Publisher<T>> {
+    async fn new(node_name: &str, topic_name: &str) -> Result<Publisher<T>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
         let greeting = Message::new(Some(NodeEntity::Publisher {
+            node_name: String::from(node_name),
             topic_name: String::from(topic_name),
         }));
         writer.write(&greeting.as_bytes()?).await?;
         Ok(Self {
+            node_name: String::from(node_name),
             topic_name: String::from(topic_name),
             writer,
             phantom_msg_type: PhantomData,
@@ -214,6 +217,7 @@ where
 /// }
 /// ```
 pub struct Subscriber<T> {
+    node_name: String,
     topic_name: String,
     reader: HubReader,
     phantom_msg_type: PhantomData<T>,
@@ -237,15 +241,17 @@ where
     ///     let mut publ: Subscriber<String> = Subscriber::new("topic").await.expect("Failed to connect to the Hub.");
     /// }
     /// ```
-    async fn new(topic_name: &str) -> Result<Subscriber<T>> {
+    async fn new(node_name: &str, topic_name: &str) -> Result<Subscriber<T>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
         let greeting = Message::new(Some(NodeEntity::Subscriber {
+            node_name: String::from(node_name),
             topic_name: String::from(topic_name),
         }));
         writer.write(&greeting.as_bytes()?).await?;
         let reader = HubReader::new(writer.into_inner());
         Ok(Self {
+            node_name: String::from(node_name),
             topic_name: String::from(topic_name),
             reader,
             phantom_msg_type: PhantomData,
