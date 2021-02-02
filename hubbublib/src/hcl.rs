@@ -318,7 +318,7 @@ pub trait Receiver<M> {
     fn callback(&mut self, msg: &Message<M>);
 }
 
-/// Node state data that can be mutated in a [`Receiver1] callback.
+/// Node state data that can be mutated in a [`Receiver`] callback.
 pub struct UserData<T> {
     thread_handle: JoinHandle<()>,
     userdata: Arc<Mutex<T>>,
