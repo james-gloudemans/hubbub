@@ -39,6 +39,28 @@ impl HubWriter {
         self.stream.flush().await?;
         Ok(())
     }
+
+    /// Write `message` to the stream and return `Ok(true)` if there was no `BrokenPipe` Error
+    ///
+    /// # Errors
+    /// Returns `Err` for any error besides `BrokenPipe`
+    pub async fn write_and_check(&mut self, message: &Bytes) -> Result<bool, tokio::io::Error> {
+        if let Some(e) = self.stream.write_all(message).await.err() {
+            if e.kind() == tokio::io::ErrorKind::BrokenPipe {
+                return Ok(true);
+            } else {
+                return Err(e);
+            }
+        }
+        if let Some(e) = self.stream.flush().await.err() {
+            if e.kind() == tokio::io::ErrorKind::BrokenPipe {
+                return Ok(true);
+            } else {
+                return Err(e);
+            }
+        }
+        Ok(false)
+    }
 }
 
 /// A thin wrapper around [`tokio::net::TcpStream`] to simplify reading from the stream.
