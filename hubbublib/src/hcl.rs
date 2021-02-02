@@ -103,25 +103,6 @@ impl<'a, T> Deref for UserDataRef<'a, T> {
     }
 }
 
-pub struct UserData<T> {
-    thread_handle: JoinHandle<()>,
-    userdata: Arc<Mutex<T>>,
-}
-
-impl<T> UserData<T> {
-    pub fn new(thread_handle: JoinHandle<()>, userdata: Arc<Mutex<T>>) -> Self {
-        Self {
-            thread_handle,
-            userdata,
-        }
-    }
-
-    pub fn get<'a>(&'a self) -> UserDataRef<'a, T> {
-        let ud = self.userdata.lock().unwrap();
-        UserDataRef(ud)
-    }
-}
-
 /// An entity that can publish [`Message<T>`]s to all [`Subscriber`]s on a topic.
 ///
 /// # Examples
@@ -251,10 +232,6 @@ where
 ///     println!("Received message: '{}'", msg.data().unwrap_or(&String::from("")));
 /// }
 /// ```
-pub trait Receiver<M> {
-    fn callback(&mut self, msg: &Message<M>);
-}
-
 pub struct Subscriber<M, R>
 where
     R: Receiver<M>,
@@ -321,6 +298,31 @@ where
                 Err(e) => {} //return Err(HubbubError::from(e)),
             };
         }
+    }
+}
+
+/// An object that can receive messages and proccess them with a callback.
+pub trait Receiver<M> {
+    fn callback(&mut self, msg: &Message<M>);
+}
+
+/// Node state data that can be mutated in a [`Receiver1] callback.
+pub struct UserData<T> {
+    thread_handle: JoinHandle<()>,
+    userdata: Arc<Mutex<T>>,
+}
+
+impl<T> UserData<T> {
+    pub fn new(thread_handle: JoinHandle<()>, userdata: Arc<Mutex<T>>) -> Self {
+        Self {
+            thread_handle,
+            userdata,
+        }
+    }
+
+    pub fn get<'a>(&'a self) -> UserDataRef<'a, T> {
+        let ud = self.userdata.lock().unwrap();
+        UserDataRef(ud)
     }
 }
 
