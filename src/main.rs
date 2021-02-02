@@ -26,13 +26,15 @@ async fn main() {
     }
 }
 
+type TopicName = String;
+
 /// The master [`Hub`] that manages connections between Hubbub nodes and tracks them
 /// for introspection of the Hubbub graph.
 #[derive(Debug)]
 struct Hub {
     address: SocketAddr,
     listener: TcpListener,
-    topics: Arc<DashMap<String, Topic>>,
+    topics: Arc<DashMap<TopicName, Topic>>,
 }
 
 // TODO: improve Hub API for introspection

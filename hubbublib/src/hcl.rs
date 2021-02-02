@@ -307,7 +307,9 @@ where
                     .lock()
                     .unwrap()
                     .callback(&Message::from_bytes(&buf).unwrap()),
-                Err(e) => {} //return Err(HubbubError::from(e)),
+                Err(e) => {
+                    return Err(HubbubError::from(e));
+                }
             };
         }
     }

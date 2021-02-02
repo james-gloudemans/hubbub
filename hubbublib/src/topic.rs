@@ -8,11 +8,13 @@ use tokio::task::JoinHandle;
 
 use crate::{HubReader, HubWriter};
 
+type NodeName = String;
+
 /// A topic that is able to publish messages to all its subscribers
 #[derive(Debug)]
 pub struct Topic {
-    subscribers: HashMap<String, HubWriter>,
-    publishers: HashSet<String>,
+    subscribers: HashMap<NodeName, HubWriter>,
+    publishers: HashSet<NodeName>,
 }
 
 impl Topic {
@@ -25,12 +27,12 @@ impl Topic {
     }
 
     /// Get an iterator over the writer for each subscriber to a [`Topic`].
-    pub fn subscribers(&self) -> std::collections::hash_map::Iter<String, HubWriter> {
+    pub fn subscribers(&self) -> std::collections::hash_map::Iter<NodeName, HubWriter> {
         self.subscribers.iter()
     }
 
     /// Get an iterator over the reader for each publisher to a [`Topic`].
-    pub fn publishers(&self) -> std::collections::hash_set::Iter<String> {
+    pub fn publishers(&self) -> std::collections::hash_set::Iter<NodeName> {
         self.publishers.iter()
     }
 
@@ -64,7 +66,7 @@ impl Topic {
         // subscribers that are still connected.  Initial capacity is the same as
         // `self.subscriber_streams` based on the assumption that disconnects will be
         // rare compared to publishes.
-        let mut connected_subs: HashMap<String, HubWriter> =
+        let mut connected_subs: HashMap<NodeName, HubWriter> =
             HashMap::with_capacity(self.subscribers.capacity());
 
         // Write the message and check for a `BrokenPipe` error.  Drops the subscriber on

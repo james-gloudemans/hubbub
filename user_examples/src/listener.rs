@@ -48,7 +48,7 @@ impl Counter {
 
 impl Receiver<String> for Counter {
     fn callback(&mut self, msg: &Message<String>) {
-        self.count_and_echo(msg);
+        self.increment_count(msg);
     }
 }
 
@@ -74,25 +74,4 @@ async fn main() {
         time::sleep(time::Duration::from_secs(1)).await;
         println!("Current count is {}", sub.get().count());
     }
-}
-
-fn echo_cb(msg: &Message<String>) {
-    println!("Received message: '{}'", msg.data());
-}
-
-fn latency_cb(msg: &Message<String>) {
-    let latency: Duration = Utc::now() - msg.stamp();
-    let latency_disp: String;
-    if latency < Duration::milliseconds(1) {
-        latency_disp = format!("{} us", latency.num_microseconds().unwrap());
-    } else if latency < Duration::seconds(1) {
-        latency_disp = format!("{} ms", latency.num_milliseconds());
-    } else {
-        latency_disp = format!("{} s", latency.num_seconds());
-    }
-    println!(
-        "Received message: '{}', latency: {}",
-        msg.data(),
-        latency_disp
-    );
 }
