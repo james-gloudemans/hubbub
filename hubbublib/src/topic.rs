@@ -1,5 +1,5 @@
 //! # Definition of Topic type for pub/sub
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::str::from_utf8;
 
 use bytes::{Bytes, BytesMut};
@@ -10,40 +10,48 @@ use crate::{HubReader, HubWriter};
 
 /// A topic that is able to publish messages to all its subscribers
 pub struct Topic {
-    subscriber_streams: Vec<HubWriter>,
-    publisher_nodes: Vec<String>,
-    subscriber_nodes: Vec<String>,
+    subscribers: HashMap<String, HubWriter>,
+    publishers: HashSet<String>,
 }
 
 impl Topic {
     /// Construct a new topic with no subscribers or publishers.
     pub fn new() -> Self {
         Self {
-            subscriber_streams: Vec::new(),
-            publisher_nodes: Vec::new(),
-            subscriber_nodes: Vec::new(),
+            subscribers: HashMap::new(),
+            publishers: HashSet::new(),
         }
     }
 
     /// Get an iterator over the writer for each subscriber to a [`Topic`].
-    pub fn subscribers(&self) -> std::slice::Iter<String> {
-        self.subscriber_nodes.iter()
+    pub fn subscribers(&self) -> std::collections::hash_map::Iter<String, HubWriter> {
+        self.subscribers.iter()
     }
 
     /// Get an iterator over the reader for each publisher to a [`Topic`].
-    pub fn publishers(&self) -> std::slice::Iter<String> {
-        self.publisher_nodes.iter()
+    pub fn publishers(&self) -> std::collections::hash_set::Iter<String> {
+        self.publishers.iter()
     }
 
     /// Add a new subscriber to a [`Topic`].
     pub fn add_subscriber(&mut self, node_name: &str, stream: TcpStream) {
-        self.subscriber_streams.push(HubWriter::new(stream));
-        self.subscriber_nodes.push(String::from(node_name))
+        self.subscribers
+            .insert(String::from(node_name), HubWriter::new(stream));
     }
 
     /// Add a new publisher to a [`Topic`].
     pub fn add_publisher(&mut self, node_name: &str) {
-        self.publisher_nodes.push(String::from(node_name));
+        self.publishers.insert(String::from(node_name));
+    }
+
+    /// Remove a subscriber from a [`Topic`]
+    pub fn remove_subscriber(&mut self, node_name: &str) {
+        self.subscribers.remove(node_name);
+    }
+
+    /// Remove a publisher from a [`Topic`]
+    pub fn remove_publisher(&mut self, node_name: &str) {
+        self.publishers.remove(node_name);
     }
 
     /// Push a message out to all subscribers to a [`Topic`].
@@ -51,21 +59,22 @@ impl Topic {
     /// # Errors
     /// Returns `Err` as soon as one of the writes fails.
     pub async fn publish(&mut self, message: Bytes) -> tokio::io::Result<()> {
-        // `self.subscriber_streams` will be drained into this `Vec`, retaining the subscribers
-        // that are still connected.  Initial capacity is the same as `self.subscriber_streams` based
-        // on the assumption that disconnects will be rare compared to publishes.
-        let mut connected_subs: Vec<HubWriter> =
-            Vec::with_capacity(self.subscriber_streams.capacity());
+        // `self.subscriber_streams` will be drained into this `HashMap`, retaining the
+        // subscribers that are still connected.  Initial capacity is the same as
+        // `self.subscriber_streams` based on the assumption that disconnects will be
+        // rare compared to publishes.
+        let mut connected_subs: HashMap<String, HubWriter> =
+            HashMap::with_capacity(self.subscribers.capacity());
 
         // Write the message and check for a `BrokenPipe` error.  Drops the subscriber on
         // `BrokenPipe`, returns other errors, and retains the subscriber if no error.
-        for mut sub in self.subscriber_streams.drain(..) {
+        for (node, mut sub) in self.subscribers.drain() {
             let broken_pipe = sub.write_and_check(&message).await?;
             if !broken_pipe {
-                connected_subs.push(sub);
+                connected_subs.insert(node, sub);
             }
         }
-        self.subscriber_streams = connected_subs;
+        self.subscribers = connected_subs;
         Ok(())
     }
 }

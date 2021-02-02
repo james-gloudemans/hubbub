@@ -36,7 +36,6 @@ async fn process_new_node(mut stream: TcpStream, hub: Arc<Hub>) {
     // Use greeting to determine the node entity's type
     match greeting.data() {
         // If publisher, listen for messages and push them to subscribers
-        // TODO: add publisher to `Topic` on connection and remove on disconnect.
         NodeEntity::Publisher {
             node_name,
             topic_name,
@@ -52,6 +51,7 @@ async fn process_new_node(mut stream: TcpStream, hub: Arc<Hub>) {
                     }
                 }
             }
+            hub.remove_publisher(node_name, topic_name);
         }
         // If subscriber, register in `hub` and return
         NodeEntity::Subscriber {
@@ -88,7 +88,7 @@ impl Hub {
         }
     }
 
-    /// Add a new publisher `hub`
+    /// Add a new publisher for the [`Hub`] to track.
     fn add_publisher(&self, node_name: &str, topic_name: &str) {
         if !self.topics.contains_key(topic_name) {
             self.topics.insert(topic_name.to_string(), Topic::new());
@@ -97,12 +97,20 @@ impl Hub {
         topic.add_publisher(node_name);
     }
 
+    /// Add a new subscriber for the [`Hub`] to track.
     fn add_subscriber(&self, node_name: &str, topic_name: &str, stream: TcpStream) {
         if !self.topics.contains_key(topic_name) {
             self.topics.insert(topic_name.to_string(), Topic::new());
         }
         let mut topic = self.topics.get_mut(topic_name).unwrap();
         topic.add_subscriber(node_name, stream);
+    }
+
+    /// Stop tracking a publisher with the given node and topic names.
+    fn remove_publisher(&self, node_name: &str, topic_name: &str) {
+        if let Some(mut topic) = self.topics.get_mut(topic_name) {
+            topic.remove_publisher(node_name);
+        }
     }
 
     /// Listen for incoming connections to the [`Hub`].
