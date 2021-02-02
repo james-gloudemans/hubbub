@@ -21,45 +21,8 @@ async fn main() {
         println!("Accepting connecton from client at: {}", client_addr);
         let hub = Arc::clone(&hub);
         tokio::spawn(async move {
-            process_new_node(stream, hub).await;
+            hub.process_new_node(stream).await;
         });
-    }
-}
-
-async fn process_new_node(mut stream: TcpStream, hub: Arc<Hub>) {
-    let mut buf = BytesMut::with_capacity(256);
-    // Wait for greeting message from new node
-    let size = stream.read_buf(&mut buf).await.unwrap();
-    let greeting: Message<NodeEntity> = serde_json::from_str(from_utf8(&buf).unwrap())
-        .expect("Node connection failed due to malformed greeting");
-    println!("Received Greeting: {:?}", greeting);
-    // Use greeting to determine the node entity's type
-    match greeting.data() {
-        // If publisher, listen for messages and push them to subscribers
-        NodeEntity::Publisher {
-            node_name,
-            topic_name,
-        } => {
-            hub.add_publisher(node_name, topic_name);
-            loop {
-                let mut buf = BytesMut::with_capacity(4096);
-                if stream.read_buf(&mut buf).await.unwrap() == 0 {
-                    break;
-                } else {
-                    if let Some(mut topic) = hub.topics.get_mut(topic_name) {
-                        topic.publish(buf.freeze()).await.unwrap();
-                    }
-                }
-            }
-            hub.remove_publisher(node_name, topic_name);
-        }
-        // If subscriber, register in `hub` and return
-        NodeEntity::Subscriber {
-            node_name,
-            topic_name,
-        } => {
-            hub.add_subscriber(node_name, topic_name, stream);
-        }
     }
 }
 
@@ -86,6 +49,43 @@ impl Hub {
             address,
             listener,
             topics: Arc::new(DashMap::new()),
+        }
+    }
+
+    async fn process_new_node(&self, mut stream: TcpStream) {
+        let mut buf = BytesMut::with_capacity(256);
+        // Wait for greeting message from new node
+        let size = stream.read_buf(&mut buf).await.unwrap();
+        let greeting: Message<NodeEntity> = serde_json::from_str(from_utf8(&buf).unwrap())
+            .expect("Node connection failed due to malformed greeting");
+        println!("Received Greeting: {:?}", greeting);
+        // Use greeting to determine the node entity's type
+        match greeting.data() {
+            // If publisher, listen for messages and push them to subscribers
+            NodeEntity::Publisher {
+                node_name,
+                topic_name,
+            } => {
+                self.add_publisher(node_name, topic_name);
+                loop {
+                    let mut buf = BytesMut::with_capacity(4096);
+                    if stream.read_buf(&mut buf).await.unwrap() == 0 {
+                        break;
+                    } else {
+                        if let Some(mut topic) = self.topics.get_mut(topic_name) {
+                            topic.publish(buf.freeze()).await.unwrap();
+                        }
+                    }
+                }
+                self.remove_publisher(node_name, topic_name);
+            }
+            // If subscriber, register in `self` and return
+            NodeEntity::Subscriber {
+                node_name,
+                topic_name,
+            } => {
+                self.add_subscriber(node_name, topic_name, stream);
+            }
         }
     }
 
