@@ -15,7 +15,7 @@ use hubbublib::NodeEntity;
 #[tokio::main]
 async fn main() {
     let hub = Arc::new(Hub::new("127.0.0.1:8080").await);
-    println!("Master listening at {}", hub.address);
+    println!("Hub listening at {}", hub.address);
     loop {
         let (stream, client_addr) = hub.listen().await.unwrap();
         println!("Accepting connecton from client at: {}", client_addr);
