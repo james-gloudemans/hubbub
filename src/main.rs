@@ -36,6 +36,7 @@ async fn process_new_node(mut stream: TcpStream, hub: Arc<Hub>) {
     // Use greeting to determine the node entity's type
     match greeting.data() {
         // If publisher, listen for messages and push them to subscribers
+        // TODO: add publisher to `Topic` on connection and remove on disconnect.
         NodeEntity::Publisher { topic_name } => loop {
             let mut buf = BytesMut::with_capacity(4096);
             let size = stream.read_buf(&mut buf).await.unwrap();
