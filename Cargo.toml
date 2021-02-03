@@ -17,10 +17,8 @@ tokio = {version = "1", features = ["full"]}
 name = "hubbub"
 path = "src/main.rs"
 
-[[bin]]
+[[example]]
 name = "talker"
-path = "user_examples/src/talker.rs"
 
-[[bin]]
+[[example]]
 name = "listener"
-path = "user_examples/src/listener.rs"
