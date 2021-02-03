@@ -1,14 +1,15 @@
 //! Definition of the central `Hub` data structure which tracks and routes all the
 //! entities in a Hubbub network.
 
-// #![allow(dead_code, unused_imports, unused_variables)]
+#![allow(dead_code, unused_imports, unused_variables)]
+
 use std::net::SocketAddr;
 use std::str::from_utf8;
 use std::sync::Arc;
 
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use dashmap::{DashMap, DashSet};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::msg::Message;
@@ -46,10 +47,12 @@ impl Hub {
         }
     }
 
+    /// Get the address that a [`Hub`]'s is listening on.
     pub fn address(&self) -> &SocketAddr {
         &self.address
     }
 
+    /// Connect a new entity to this [`Hub`]
     pub async fn connect(greeting: &Message<HubEntity>) -> crate::hcl::Result<TcpStream> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
@@ -115,10 +118,10 @@ impl Hub {
     pub fn node_subscribers(&self, node_name: &str) /*-> Iter<String> */ {}
 
     /// Return an iterator over the nodes publishing on the topic named `topic_name`
-    pub fn topic_publishers(&self, topic_name: &str) /*Iter<String> */ {}
+    pub fn topic_publishers(&self, topic_name: &str) /*-> Iter<String> */ {}
 
     /// Return an iterator over the nodes subscribed to the topic named `topic_name`
-    pub fn topic_subscribers(&self, topic_name: &str) /*Iter<String> */ {}
+    pub fn topic_subscribers(&self, topic_name: &str) /*-> Iter<String> */ {}
 
     /// Add a new Node for the [`Hub`] to track.
     pub fn add_node(&self, node_name: &str) -> Result<()> {
