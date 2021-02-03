@@ -1,3 +1,7 @@
+//! Definition of the central `Hub` data structure which tracks and routes all the
+//! entities in a Hubbub network.
+
+// #![allow(dead_code, unused_imports, unused_variables)]
 use std::net::SocketAddr;
 use std::str::from_utf8;
 use std::sync::Arc;
