@@ -9,6 +9,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
 
 pub mod hcl;
+pub mod hub;
 pub mod msg;
 pub mod topic;
 

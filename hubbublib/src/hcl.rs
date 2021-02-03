@@ -13,6 +13,7 @@ use serde::Serialize;
 use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 
+use crate::hub::Hub;
 use crate::msg::{Message, MessageError};
 use crate::{HubEntity, HubReader, HubWriter};
 
@@ -172,17 +173,23 @@ where
     /// }
     /// ```
     async fn new(node_name: &str, topic_name: &str) -> Result<Publisher<T>> {
-        let stream = TcpStream::connect("127.0.0.1:8080").await?;
-        let mut writer = HubWriter::new(stream);
-        let greeting = Message::new(Some(HubEntity::Publisher {
+        let stream = Hub::connect(&Message::new(HubEntity::Publisher {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),
-        }));
-        writer.write(&greeting.as_bytes()?).await?;
+        }))
+        .await
+        .unwrap();
+        // let stream = TcpStream::connect("127.0.0.1:8080").await?;
+        // let mut writer = HubWriter::new(stream);
+        // let greeting = Message::new(Some(HubEntity::Publisher {
+        //     node_name: String::from(node_name),
+        //     topic_name: String::from(topic_name),
+        // }));
+        // writer.write(&greeting.as_bytes()?).await?;
         Ok(Self {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),
-            writer,
+            writer: HubWriter::new(stream),
             phantom_msg_type: PhantomData,
         })
     }
