@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// A message used to exhange Rust data structures between Hubbub nodes.
 ///
 /// Can contain any type that derives [`serde`]'s [`Serialize`] and [`Deserialize`] traits,
-/// or empty ([`None`]).
+/// or empty (`()`).
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message<T> {
     header: Header,
@@ -50,10 +50,35 @@ where
 
     /// Convert a [`Message<T>`] to a `Bytes` instance which can be sent over the
     /// network to other Hubbub nodes.
+    ///
     /// # Errors
     /// Returns [`Err` ]if the [`Message<T>`] fails to serialize.
     pub fn as_bytes(&self) -> Result<Bytes> {
-        Ok(serde_json::to_string(self).map(|s| Bytes::from(s + "\n"))?)
+        // Ok(serde_json::to_string(self).map(|s| Bytes::from(s + "\n"))?)
+        Ok(serde_json::to_vec(self).map(|mut s| {
+            s.push(b'\n' as u8);
+            Bytes::from(s)
+        })?)
+    }
+
+    /// Get a JSON string representation of a [`Message<T>`]
+    ///
+    /// Can be used for printing if `Debug` is not derived for `T`
+    ///
+    /// # Errors
+    /// Returns [`Err` ]if the [`Message<T>`] fails to serialize.
+    pub fn as_str(&self) -> Result<String> {
+        Ok(serde_json::to_string(self)?)
+    }
+
+    /// Get a JSON string representation of a [`Message<T>`] for pretty printing
+    ///
+    /// Can be used for printing if `Debug` is not derived for `T`
+    ///
+    /// # Errors
+    /// Returns [`Err` ]if the [`Message<T>`] fails to serialize.
+    pub fn as_str_pretty(&self) -> Result<String> {
+        Ok(serde_json::to_string_pretty(self)?)
     }
 
     /// Get a reference to the data held in a [`Message<T>`].
