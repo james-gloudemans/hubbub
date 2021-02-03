@@ -1,16 +1,15 @@
 //! # Hubbub Client Library
-// #![allow(dead_code, unused_imports, unused_variables)]
-use std::collections::HashSet;
+
+#![allow(dead_code, unused_imports, unused_variables)]
+
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::str::from_utf8;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use bytes::Bytes;
 use dashmap::DashSet;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 
 use crate::hub::Hub;
