@@ -279,19 +279,17 @@ where
         topic_name: String,
         receiver: Arc<Mutex<R>>,
     ) -> Result<Subscriber<M, R>> {
-        let stream = TcpStream::connect("127.0.0.1:8080").await?;
-        let mut writer = HubWriter::new(stream);
-        let greeting = Message::new(Some(HubEntity::Subscriber {
+        let stream = Hub::connect(&Message::new(HubEntity::Subscriber {
             node_name: String::from(&node_name),
             topic_name: String::from(&topic_name),
-        }));
-        writer.write(&greeting.as_bytes()?).await?;
-        let reader = HubReader::new(writer.into_inner());
+        }))
+        .await
+        .unwrap();
         Ok(Self {
             receiver,
             node_name,
             topic_name,
-            reader,
+            reader: HubReader::new(stream),
             phantom_msg_type: PhantomData,
         })
     }

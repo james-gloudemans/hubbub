@@ -105,11 +105,7 @@ impl Hub {
     /// Return an iterator over the names of the topics.
     pub fn topics(&self) /* -> Iter<String> */
     {
-        let x = self.topics.0.iter().map(|i| i.key().to_owned());
-        // for t in &*self.topics.0 {
-        //     let k = t.key();
-        //     let v = t.value();
-        // }
+        // self.topics.0.into_iter()
     }
 
     /// Return an iterator over the topics published on by the node named `node_name`
