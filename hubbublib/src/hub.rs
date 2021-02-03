@@ -57,7 +57,7 @@ impl Hub {
         Ok(writer.into_inner())
     }
 
-    pub async fn process_new_node(&self, mut stream: TcpStream) {
+    pub async fn process_new_entity(&self, mut stream: TcpStream) {
         let mut buf = BytesMut::with_capacity(256);
         // Wait for greeting message from new entity
         let size = stream.read_buf(&mut buf).await.unwrap();

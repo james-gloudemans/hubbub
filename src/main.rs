@@ -11,7 +11,7 @@ async fn main() {
         println!("Accepting connecton from client at: {}", client_addr);
         let hub = Arc::clone(&hub);
         tokio::spawn(async move {
-            hub.process_new_node(stream).await;
+            hub.process_new_entity(stream).await;
         });
     }
 }
