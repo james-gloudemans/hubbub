@@ -56,12 +56,12 @@ impl Hub {
 
     async fn process_new_node(&self, mut stream: TcpStream) {
         let mut buf = BytesMut::with_capacity(256);
-        // Wait for greeting message from new node
+        // Wait for greeting message from new entity
         let size = stream.read_buf(&mut buf).await.unwrap();
         let greeting: Message<NodeEntity> = serde_json::from_str(from_utf8(&buf).unwrap())
             .expect("Node connection failed due to malformed greeting");
         println!("Received Greeting: {:?}", greeting);
-        // Use greeting to determine the node entity's type
+        // Use greeting to determine the entity's type
         match greeting.data() {
             // If publisher, listen for messages and push them to subscribers
             NodeEntity::Publisher {
