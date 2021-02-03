@@ -95,10 +95,10 @@ impl HubReader {
 }
 
 /// A type which can be used by node entities (i.e. publishers or subscribers) to
-/// identify themselves to the `Hub` by sending a `Message<NodeEntity>` as a greeting
+/// identify themselves to the `Hub` by sending a `Message<HubEntity>` as a greeting
 /// immediately after connection.
 #[derive(Serialize, Deserialize, Debug)]
-pub enum NodeEntity {
+pub enum HubEntity {
     Publisher {
         node_name: String,
         topic_name: String,
@@ -106,6 +106,9 @@ pub enum NodeEntity {
     Subscriber {
         node_name: String,
         topic_name: String,
+    },
+    Node {
+        node_name: String,
     },
 }
 

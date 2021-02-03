@@ -14,7 +14,7 @@ use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 
 use crate::msg::{Message, MessageError};
-use crate::{HubReader, HubWriter, NodeEntity};
+use crate::{HubEntity, HubReader, HubWriter};
 
 /// A node in the Hubbub network
 #[derive(Debug)]
@@ -174,7 +174,7 @@ where
     async fn new(node_name: &str, topic_name: &str) -> Result<Publisher<T>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
-        let greeting = Message::new(Some(NodeEntity::Publisher {
+        let greeting = Message::new(Some(HubEntity::Publisher {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),
         }));
@@ -274,7 +274,7 @@ where
     ) -> Result<Subscriber<M, R>> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let mut writer = HubWriter::new(stream);
-        let greeting = Message::new(Some(NodeEntity::Subscriber {
+        let greeting = Message::new(Some(HubEntity::Subscriber {
             node_name: String::from(&node_name),
             topic_name: String::from(&topic_name),
         }));

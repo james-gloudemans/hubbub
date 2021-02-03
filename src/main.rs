@@ -4,13 +4,13 @@ use std::str::from_utf8;
 use std::sync::Arc;
 
 use bytes::{Bytes, BytesMut};
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 
 use hubbublib::msg::Message;
 use hubbublib::topic::Topic;
-use hubbublib::NodeEntity;
+use hubbublib::HubEntity;
 
 #[tokio::main]
 async fn main() {
@@ -27,6 +27,7 @@ async fn main() {
 }
 
 type TopicName = String;
+type NodeName = String;
 
 /// The master [`Hub`] that manages connections between Hubbub nodes and tracks them
 /// for introspection of the Hubbub graph.
@@ -35,9 +36,10 @@ struct Hub {
     address: SocketAddr,
     listener: TcpListener,
     topics: Arc<DashMap<TopicName, Topic>>,
+    nodes: Arc<DashSet<NodeName>>,
 }
 
-// TODO: improve Hub API for introspection
+// TODO: #1 improve Hub API for introspection
 impl Hub {
     /// Construct a new [`Hub`]listening on the given IP address `addr`
     ///
@@ -51,6 +53,7 @@ impl Hub {
             address,
             listener,
             topics: Arc::new(DashMap::new()),
+            nodes: Arc::new(DashSet::new()),
         }
     }
 
@@ -58,13 +61,13 @@ impl Hub {
         let mut buf = BytesMut::with_capacity(256);
         // Wait for greeting message from new entity
         let size = stream.read_buf(&mut buf).await.unwrap();
-        let greeting: Message<NodeEntity> = serde_json::from_str(from_utf8(&buf).unwrap())
+        let greeting: Message<HubEntity> = serde_json::from_str(from_utf8(&buf).unwrap())
             .expect("Node connection failed due to malformed greeting");
         println!("Received Greeting: {:?}", greeting);
         // Use greeting to determine the entity's type
         match greeting.data() {
             // If publisher, listen for messages and push them to subscribers
-            NodeEntity::Publisher {
+            HubEntity::Publisher {
                 node_name,
                 topic_name,
             } => {
@@ -82,13 +85,27 @@ impl Hub {
                 self.remove_publisher(node_name, topic_name);
             }
             // If subscriber, register in `self` and return
-            NodeEntity::Subscriber {
+            HubEntity::Subscriber {
                 node_name,
                 topic_name,
             } => {
                 self.add_subscriber(node_name, topic_name, stream);
             }
+            // If new Node, register in `self` and return
+            HubEntity::Node { node_name } => self.add_node(node_name).unwrap(),
         }
+    }
+
+    /// Add a new Node for the [`Hub`] to track.
+    fn add_node(&self, node_name: &str) -> Result<()> {
+        if self.nodes.contains(node_name) {
+            return Err(HubError::DuplicateNodeNameError {
+                name: String::from(node_name),
+            });
+        } else {
+            self.nodes.insert(String::from(node_name));
+        }
+        Ok(())
     }
 
     /// Add a new publisher for the [`Hub`] to track.
@@ -125,3 +142,12 @@ impl Hub {
         self.listener.accept().await
     }
 }
+
+/// Error type representing all possible errors that can happen in [`Hub`] operations
+#[derive(Debug)]
+pub enum HubError {
+    DuplicateNodeNameError { name: String },
+}
+
+/// A specialized [`Result`] type for [`Hub`] operations.
+pub type Result<T> = std::result::Result<T, HubError>;
