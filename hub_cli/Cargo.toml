@@ -1,0 +1,13 @@
+[package]
+authors = ["James Gloudemans <james.gloudemans@gmail.com>"]
+default-run = "hub"
+edition = "2018"
+name = "hub_cli"
+version = "0.1.0"
+
+[dependencies]
+hubbublib = {path = "../hubbublib"}
+
+[[bin]]
+name = "hub"
+path = "src/main.rs"

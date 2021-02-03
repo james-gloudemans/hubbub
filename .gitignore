@@ -2,5 +2,5 @@
 Cargo.lock
 hubbublib/target
 hubbublib/Cargo.lock
-user_examples/target
-user_examples/Cargo.lock
+hub_cli/target
+hub_cli/Cargo.lock
