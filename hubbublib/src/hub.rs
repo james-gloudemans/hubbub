@@ -18,6 +18,7 @@ use crate::{HubEntity, HubWriter};
 
 type TopicName = String;
 type NodeName = String;
+type ItemRef<'a> = dashmap::mapref::multiple::RefMulti<'a, String, Topic>;
 
 /// The master [`Hub`] that manages connections between Hubbub nodes and tracks them
 /// for introspection of the Hubbub graph.
@@ -106,9 +107,13 @@ impl Hub {
     }
 
     /// Return an iterator over the names of the topics.
-    pub fn topics(&self) /* -> Iter<String> */
-    {
-        // self.topics.0.into_iter()
+    pub fn topics(
+        &self,
+    ) -> std::iter::Map<dashmap::iter::Iter<String, Topic>, fn(ItemRef) -> String> {
+        fn copy_key(item: ItemRef) -> String {
+            item.key().to_owned()
+        }
+        self.topics.0.iter().map(copy_key as fn(ItemRef) -> String)
     }
 
     /// Return an iterator over the topics published on by the node named `node_name`
@@ -178,7 +183,7 @@ struct TopicRegistry(Arc<DashMap<TopicName, Topic>>);
 #[derive(Debug)]
 struct NodeRegistry(Arc<DashSet<NodeName>>);
 
-// impl IntoIter for NodeRegistry
+// impl IntoIter for NodeRegistry {}
 
 /// Error type representing all possible errors that can happen in [`Hub`] operations
 #[derive(Debug)]
