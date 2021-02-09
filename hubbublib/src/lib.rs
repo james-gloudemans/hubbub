@@ -114,6 +114,7 @@ pub enum HubEntity {
     },
 }
 
+use serde_reflection::ContainerFormat;
 pub fn get_msg_schema<T>() -> Result<String, serde_reflection::Error>
 where
     T: DeserializeOwned,
@@ -122,9 +123,15 @@ where
     let samples = Samples::new();
 
     tracer.trace_type::<msg::Message<T>>(&samples)?;
-    // tracer.trace_type::<T>(&samples)?;
     let registry = tracer.registry()?;
-    Ok(serde_yaml::to_string(&registry["Message"]).unwrap())
+    // Strip the `header` field from `Message` and just display the schema of the
+    // `data` field
+    let schema = if let ContainerFormat::Struct(fields) = &registry["Message"] {
+        serde_yaml::to_string(&fields[1].value).unwrap()
+    } else {
+        serde_yaml::to_string(&()).unwrap()
+    };
+    Ok(schema)
 }
 
 #[cfg(test)]
