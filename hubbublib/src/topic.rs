@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use bytes::Bytes;
 use tokio::net::TcpStream;
 
+use crate::msg::MessageSchema;
 use crate::HubWriter;
 
 type NodeName = String;
@@ -16,16 +17,16 @@ type NodeName = String;
 pub struct Topic {
     subscribers: HashMap<NodeName, HubWriter>,
     publishers: HashSet<NodeName>,
-    msg_schema: String,
+    msg_schema: MessageSchema,
 }
 
 impl Topic {
     /// Construct a new topic with no subscribers or publishers.
-    pub fn new(msg_schema: &str) -> Self {
+    pub fn new(msg_schema: &MessageSchema) -> Self {
         Self {
             subscribers: HashMap::new(),
             publishers: HashSet::new(),
-            msg_schema: String::from(msg_schema),
+            msg_schema: msg_schema.to_owned(),
         }
     }
 
@@ -46,10 +47,10 @@ impl Topic {
     pub fn add_subscriber(
         &mut self,
         node_name: &str,
-        msg_schema: &str,
+        msg_schema: &MessageSchema,
         stream: TcpStream,
     ) -> Result<()> {
-        if msg_schema != self.msg_schema {
+        if msg_schema != &self.msg_schema {
             Err(TopicError::MessageTypeError)
         } else {
             self.subscribers
@@ -62,8 +63,8 @@ impl Topic {
     ///
     /// # Errors
     /// Returns `Err` if the message schema does not match the schema for this `Topic`.
-    pub fn add_publisher(&mut self, node_name: &str, msg_schema: &str) -> Result<()> {
-        if msg_schema != self.msg_schema {
+    pub fn add_publisher(&mut self, node_name: &str, msg_schema: &MessageSchema) -> Result<()> {
+        if msg_schema != &self.msg_schema {
             Err(TopicError::MessageTypeError)
         } else {
             self.publishers.insert(String::from(node_name));

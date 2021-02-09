@@ -12,7 +12,7 @@ use dashmap::{DashMap, DashSet};
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 
-use crate::msg::Message;
+use crate::msg::{Message, MessageSchema};
 use crate::topic::Topic;
 use crate::{HubEntity, HubWriter};
 
@@ -72,6 +72,7 @@ impl Hub {
                 "Node connection failed due to malformed greeting: {}",
                 from_utf8(&buf).unwrap()
             ));
+        // TODO: Make a prettier message here
         println!("Received Greeting: {:?}", greeting);
         // Use greeting to determine the entity's type
         match greeting.data() {
@@ -160,7 +161,12 @@ impl Hub {
     ///
     /// # Errors
     /// Returns `Err` if the message type does not match the message type for the `Topic`
-    pub fn add_publisher(&self, node_name: &str, topic_name: &str, msg_schema: &str) -> Result<()> {
+    pub fn add_publisher(
+        &self,
+        node_name: &str,
+        topic_name: &str,
+        msg_schema: &MessageSchema,
+    ) -> Result<()> {
         if !self.topics.0.contains_key(topic_name) {
             self.topics
                 .0
@@ -181,7 +187,7 @@ impl Hub {
         &self,
         node_name: &str,
         topic_name: &str,
-        msg_schema: &str,
+        msg_schema: &MessageSchema,
         stream: TcpStream,
     ) -> Result<()> {
         if !self.topics.0.contains_key(topic_name) {

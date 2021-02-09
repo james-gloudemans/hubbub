@@ -13,8 +13,8 @@ use serde::Serialize;
 use tokio::task::JoinHandle;
 
 use crate::hub::Hub;
-use crate::msg::{Message, MessageError};
-use crate::{get_msg_schema, HubEntity, HubReader, HubWriter};
+use crate::msg::{Message, MessageError, MessageSchema};
+use crate::{HubEntity, HubReader, HubWriter};
 
 /// A node in the Hubbub network
 #[derive(Debug)]
@@ -172,11 +172,10 @@ where
     /// }
     /// ```
     async fn new(node_name: &str, topic_name: &str) -> Result<Publisher<T>> {
-        let msg_schema = get_msg_schema::<T>()?;
         let stream = Hub::connect(&Message::new(HubEntity::Publisher {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),
-            msg_schema,
+            msg_schema: MessageSchema::new::<T>()?,
         }))
         .await
         .unwrap();
@@ -283,7 +282,7 @@ where
         let stream = Hub::connect(&Message::new(HubEntity::Subscriber {
             node_name: String::from(&node_name),
             topic_name: String::from(&topic_name),
-            msg_schema: get_msg_schema::<M>()?,
+            msg_schema: MessageSchema::new::<M>()?,
         }))
         .await
         .unwrap();

@@ -1,9 +1,7 @@
 // #![allow(dead_code, unused_imports, unused_variables)]
 
 use bytes::Bytes;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_reflection::{Samples, Tracer, TracerConfig};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
 
@@ -102,36 +100,16 @@ pub enum HubEntity {
     Publisher {
         node_name: String,
         topic_name: String,
-        msg_schema: String,
+        msg_schema: msg::MessageSchema,
     },
     Subscriber {
         node_name: String,
         topic_name: String,
-        msg_schema: String,
+        msg_schema: msg::MessageSchema,
     },
     Node {
         node_name: String,
     },
-}
-
-use serde_reflection::ContainerFormat;
-pub fn get_msg_schema<T>() -> Result<String, serde_reflection::Error>
-where
-    T: DeserializeOwned,
-{
-    let mut tracer = Tracer::new(TracerConfig::default());
-    let samples = Samples::new();
-
-    tracer.trace_type::<msg::Message<T>>(&samples)?;
-    let registry = tracer.registry()?;
-    // Strip the `header` field from `Message` and just display the schema of the
-    // `data` field
-    let schema = if let ContainerFormat::Struct(fields) = &registry["Message"] {
-        serde_yaml::to_string(&fields[1].value).unwrap()
-    } else {
-        serde_yaml::to_string(&()).unwrap()
-    };
-    Ok(schema)
 }
 
 #[cfg(test)]
