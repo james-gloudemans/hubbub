@@ -61,12 +61,17 @@ impl Hub {
         Ok(writer.into_inner())
     }
 
+    // TODO: make connection a request / reply so the reply can contain info about
+    // connection errors
     pub async fn process_new_entity(&self, mut stream: TcpStream) {
         let mut buf = BytesMut::with_capacity(256);
         // Wait for greeting message from new entity
         let size = stream.read_buf(&mut buf).await.unwrap();
-        let greeting: Message<HubEntity> = serde_json::from_str(from_utf8(&buf).unwrap())
-            .expect("Node connection failed due to malformed greeting");
+        let greeting: Message<HubEntity> =
+            serde_json::from_str(from_utf8(&buf).unwrap()).expect(&format!(
+                "Node connection failed due to malformed greeting: {}",
+                from_utf8(&buf).unwrap()
+            ));
         println!("Received Greeting: {:?}", greeting);
         // Use greeting to determine the entity's type
         match greeting.data() {
@@ -74,27 +79,38 @@ impl Hub {
             HubEntity::Publisher {
                 node_name,
                 topic_name,
-            } => {
-                self.add_publisher(node_name, topic_name);
-                loop {
-                    let mut buf = BytesMut::with_capacity(4096);
-                    if stream.read_buf(&mut buf).await.unwrap() == 0 {
-                        break;
-                    } else {
-                        if let Some(mut topic) = self.topics.0.get_mut(topic_name) {
-                            topic.publish(buf.freeze()).await.unwrap();
+                msg_schema,
+            } => match self.add_publisher(node_name, topic_name, msg_schema) {
+                Ok(_) => {
+                    loop {
+                        let mut buf = BytesMut::with_capacity(4096);
+                        if stream.read_buf(&mut buf).await.unwrap() == 0 {
+                            break;
+                        } else {
+                            if let Some(mut topic) = self.topics.0.get_mut(topic_name) {
+                                topic.publish(buf.freeze()).await.unwrap();
+                            }
                         }
                     }
+                    self.remove_publisher(node_name, topic_name);
                 }
-                self.remove_publisher(node_name, topic_name);
-            }
+                Err(HubError::MessageTypeError) => {
+                    println!("Failed to connect publisher due to type mismatch.")
+                }
+                Err(_) => panic!("Error encountered while connecting publisher."),
+            },
             // If subscriber, register in `self` and return
             HubEntity::Subscriber {
                 node_name,
                 topic_name,
-            } => {
-                self.add_subscriber(node_name, topic_name, stream);
-            }
+                msg_schema,
+            } => match self.add_subscriber(node_name, topic_name, msg_schema, stream) {
+                Err(HubError::MessageTypeError) => {
+                    println!("Failed to connect subscriber due to type mismatch.")
+                }
+                Err(_) => panic!("Error encountered while connecting subscriber."),
+                Ok(_) => {}
+            },
             // If new Node, register in `self` and return
             HubEntity::Node { node_name } => self.add_node(node_name).unwrap(),
         }
@@ -141,21 +157,43 @@ impl Hub {
     }
 
     /// Add a new publisher for the [`Hub`] to track.
-    pub fn add_publisher(&self, node_name: &str, topic_name: &str) {
+    ///
+    /// # Errors
+    /// Returns `Err` if the message type does not match the message type for the `Topic`
+    pub fn add_publisher(&self, node_name: &str, topic_name: &str, msg_schema: &str) -> Result<()> {
         if !self.topics.0.contains_key(topic_name) {
-            self.topics.0.insert(topic_name.to_string(), Topic::new());
+            self.topics
+                .0
+                .insert(topic_name.to_string(), Topic::new(msg_schema));
         }
         let mut topic = self.topics.0.get_mut(topic_name).unwrap();
-        topic.add_publisher(node_name);
+        match topic.add_publisher(node_name, msg_schema) {
+            Ok(_) => Ok(()),
+            Err(crate::topic::TopicError::MessageTypeError) => Err(HubError::MessageTypeError),
+        }
     }
 
     /// Add a new subscriber for the [`Hub`] to track.
-    pub fn add_subscriber(&self, node_name: &str, topic_name: &str, stream: TcpStream) {
+    ///
+    /// # Errors
+    /// Returns `Err` if the message type does not match the message type for the `Topic`
+    pub fn add_subscriber(
+        &self,
+        node_name: &str,
+        topic_name: &str,
+        msg_schema: &str,
+        stream: TcpStream,
+    ) -> Result<()> {
         if !self.topics.0.contains_key(topic_name) {
-            self.topics.0.insert(topic_name.to_string(), Topic::new());
+            self.topics
+                .0
+                .insert(topic_name.to_string(), Topic::new(msg_schema));
         }
         let mut topic = self.topics.0.get_mut(topic_name).unwrap();
-        topic.add_subscriber(node_name, stream);
+        match topic.add_subscriber(node_name, msg_schema, stream) {
+            Ok(_) => Ok(()),
+            Err(crate::topic::TopicError::MessageTypeError) => Err(HubError::MessageTypeError),
+        }
     }
 
     /// Stop tracking a publisher with the given node and topic names.
@@ -189,6 +227,7 @@ struct NodeRegistry(Arc<DashSet<NodeName>>);
 #[derive(Debug)]
 pub enum HubError {
     DuplicateNodeNameError { name: String },
+    MessageTypeError,
 }
 
 /// A specialized [`Result`] type for [`Hub`] operations.

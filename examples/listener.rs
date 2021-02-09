@@ -68,7 +68,10 @@ async fn main() {
 
     let node = Node::new("Listener");
     let msg_counter = Counter { count: 0 };
-    let sub = node.create_subscriber(topic, msg_counter).await.unwrap();
+    let sub = node
+        .create_subscriber::<String, _>(topic, msg_counter)
+        .await
+        .unwrap();
     println!("Node '{}' is listening...", node.name());
     loop {
         time::sleep(time::Duration::from_secs(1)).await;

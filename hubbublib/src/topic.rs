@@ -16,14 +16,16 @@ type NodeName = String;
 pub struct Topic {
     subscribers: HashMap<NodeName, HubWriter>,
     publishers: HashSet<NodeName>,
+    msg_schema: String,
 }
 
 impl Topic {
     /// Construct a new topic with no subscribers or publishers.
-    pub fn new() -> Self {
+    pub fn new(msg_schema: &str) -> Self {
         Self {
             subscribers: HashMap::new(),
             publishers: HashSet::new(),
+            msg_schema: String::from(msg_schema),
         }
     }
 
@@ -38,14 +40,35 @@ impl Topic {
     }
 
     /// Add a new subscriber to a [`Topic`].
-    pub fn add_subscriber(&mut self, node_name: &str, stream: TcpStream) {
-        self.subscribers
-            .insert(String::from(node_name), HubWriter::new(stream));
+    ///
+    /// # Errors
+    /// Returns `Err` if the message schema does not match the schema for this `Topic`.
+    pub fn add_subscriber(
+        &mut self,
+        node_name: &str,
+        msg_schema: &str,
+        stream: TcpStream,
+    ) -> Result<()> {
+        if msg_schema != self.msg_schema {
+            Err(TopicError::MessageTypeError)
+        } else {
+            self.subscribers
+                .insert(String::from(node_name), HubWriter::new(stream));
+            Ok(())
+        }
     }
 
     /// Add a new publisher to a [`Topic`].
-    pub fn add_publisher(&mut self, node_name: &str) {
-        self.publishers.insert(String::from(node_name));
+    ///
+    /// # Errors
+    /// Returns `Err` if the message schema does not match the schema for this `Topic`.
+    pub fn add_publisher(&mut self, node_name: &str, msg_schema: &str) -> Result<()> {
+        if msg_schema != self.msg_schema {
+            Err(TopicError::MessageTypeError)
+        } else {
+            self.publishers.insert(String::from(node_name));
+            Ok(())
+        }
     }
 
     /// Remove a subscriber from a [`Topic`]
@@ -82,3 +105,10 @@ impl Topic {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+pub enum TopicError {
+    MessageTypeError,
+}
+
+pub type Result<T> = std::result::Result<T, TopicError>;

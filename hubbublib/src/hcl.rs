@@ -14,7 +14,7 @@ use tokio::task::JoinHandle;
 
 use crate::hub::Hub;
 use crate::msg::{Message, MessageError};
-use crate::{HubEntity, HubReader, HubWriter};
+use crate::{get_msg_schema, HubEntity, HubReader, HubWriter};
 
 /// A node in the Hubbub network
 #[derive(Debug)]
@@ -172,9 +172,11 @@ where
     /// }
     /// ```
     async fn new(node_name: &str, topic_name: &str) -> Result<Publisher<T>> {
+        let msg_schema = get_msg_schema::<T>()?;
         let stream = Hub::connect(&Message::new(HubEntity::Publisher {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),
+            msg_schema,
         }))
         .await
         .unwrap();
@@ -281,6 +283,7 @@ where
         let stream = Hub::connect(&Message::new(HubEntity::Subscriber {
             node_name: String::from(&node_name),
             topic_name: String::from(&topic_name),
+            msg_schema: get_msg_schema::<M>()?,
         }))
         .await
         .unwrap();
@@ -351,12 +354,19 @@ pub enum HubbubError {
     MessageError(MessageError),
     DuplicatePublisher { topic: String },
     DuplicateSubscriber { topic: String },
+    ReflectionFailed,
     // NotImplemented,
 }
 
 impl From<tokio::io::Error> for HubbubError {
     fn from(e: tokio::io::Error) -> Self {
         HubbubError::IoError(e)
+    }
+}
+
+impl From<serde_reflection::Error> for HubbubError {
+    fn from(e: serde_reflection::Error) -> Self {
+        HubbubError::ReflectionFailed
     }
 }
 

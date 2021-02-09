@@ -94,7 +94,8 @@ where
 
 /// A header that is attached to every [`Message<T>`].  Currently, just contains a timestamp.
 #[derive(Serialize, Deserialize, Debug)]
-struct Header {
+pub struct Header {
+    #[serde(with = "timestamp")]
     stamp: DateTime<Utc>,
 }
 
@@ -103,6 +104,28 @@ impl Header {
     fn new() -> Self {
         // TODO: move the stamping to just before a message is sent.
         Self { stamp: Utc::now() }
+    }
+}
+
+mod timestamp {
+    use chrono::{DateTime, TimeZone, Utc};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[derive(Serialize, Deserialize)]
+    struct TimeStamp(i64);
+
+    pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        TimeStamp(date.timestamp_millis()).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        TimeStamp::deserialize(deserializer).map(|time| Utc.timestamp_millis(time.0))
     }
 }
 

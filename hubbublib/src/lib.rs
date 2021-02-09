@@ -1,7 +1,9 @@
 // #![allow(dead_code, unused_imports, unused_variables)]
 
 use bytes::Bytes;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_reflection::{Samples, Tracer, TracerConfig};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
 
@@ -100,14 +102,29 @@ pub enum HubEntity {
     Publisher {
         node_name: String,
         topic_name: String,
+        msg_schema: String,
     },
     Subscriber {
         node_name: String,
         topic_name: String,
+        msg_schema: String,
     },
     Node {
         node_name: String,
     },
+}
+
+pub fn get_msg_schema<T>() -> Result<String, serde_reflection::Error>
+where
+    T: DeserializeOwned,
+{
+    let mut tracer = Tracer::new(TracerConfig::default());
+    let samples = Samples::new();
+
+    tracer.trace_type::<msg::Message<T>>(&samples)?;
+    // tracer.trace_type::<T>(&samples)?;
+    let registry = tracer.registry()?;
+    Ok(serde_yaml::to_string(&registry["Message"]).unwrap())
 }
 
 #[cfg(test)]
