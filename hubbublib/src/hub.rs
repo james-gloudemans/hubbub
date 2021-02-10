@@ -3,6 +3,7 @@
 
 #![allow(dead_code, unused_imports, unused_variables)]
 
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::str::from_utf8;
 use std::sync::Arc;
@@ -118,32 +119,29 @@ impl Hub {
     }
 
     /// Return an iterator over the names of the nodes.
-    pub fn nodes(&self) /* Iter<String> */
-    {
-        // self.nodes.0.into_iter()
-    }
-
-    /// Return an iterator over the names of the topics.
-    pub fn topics(
-        &self,
-    ) -> std::iter::Map<dashmap::iter::Iter<String, Topic>, fn(ItemRef) -> String> {
-        fn copy_key(item: ItemRef) -> String {
-            item.key().to_owned()
+    pub fn topics(&self) -> Topics {
+        Topics {
+            inner: self.topics.0.iter(),
         }
-        self.topics.0.iter().map(copy_key as fn(ItemRef) -> String)
     }
 
-    /// Return an iterator over the topics published on by the node named `node_name`
-    pub fn node_publishers(&self, node_name: &str) /*-> Iter<String> */ {}
+    pub fn nodes(&self) -> Nodes {
+        Nodes {
+            inner: self.nodes.0.iter(),
+        }
+    }
 
-    /// Return an iterator over the topics subscribed to by the node named `node_name`
-    pub fn node_subscribers(&self, node_name: &str) /*-> Iter<String> */ {}
+    // /// Return an iterator over the topics published on by the node named `node_name`
+    // pub fn node_publishers(&self, node_name: &str) /*-> Iter<String> */ {}
 
-    /// Return an iterator over the nodes publishing on the topic named `topic_name`
-    pub fn topic_publishers(&self, topic_name: &str) /*-> Iter<String> */ {}
+    // /// Return an iterator over the topics subscribed to by the node named `node_name`
+    // pub fn node_subscribers(&self, node_name: &str) /*-> Iter<String> */ {}
 
-    /// Return an iterator over the nodes subscribed to the topic named `topic_name`
-    pub fn topic_subscribers(&self, topic_name: &str) /*-> Iter<String> */ {}
+    // /// Return an iterator over the nodes publishing on the topic named `topic_name`
+    // pub fn topic_publishers(&self, topic_name: &str) /*-> Iter<String> */ {}
+
+    // /// Return an iterator over the nodes subscribed to the topic named `topic_name`
+    // pub fn topic_subscribers(&self, topic_name: &str) /*-> Iter<String> */ {}
 
     /// Add a new Node for the [`Hub`] to track.
     pub fn add_node(&self, node_name: &str) -> Result<()> {
@@ -216,6 +214,35 @@ impl Hub {
     /// address will be returned.
     pub async fn listen(&self) -> tokio::io::Result<(TcpStream, SocketAddr)> {
         self.listener.accept().await
+    }
+}
+
+pub struct Topics<'a> {
+    inner: dashmap::iter::Iter<'a, TopicName, Topic>,
+}
+
+impl<'a> Iterator for Topics<'a> {
+    type Item = TopicName;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|item| item.key().to_owned())
+    }
+}
+
+pub struct Nodes<'a> {
+    inner: dashmap::iter_set::Iter<
+        'a,
+        NodeName,
+        std::collections::hash_map::RandomState,
+        DashMap<NodeName, (), std::collections::hash_map::RandomState>,
+    >,
+}
+
+impl<'a> Iterator for Nodes<'a> {
+    type Item = NodeName;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|item| item.to_owned())
     }
 }
 
