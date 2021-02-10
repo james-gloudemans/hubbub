@@ -132,6 +132,12 @@ mod timestamp {
 
 /// A type for representing [`Message`] type formats.  This is used, e.g., to enforce
 /// type consistency among all [`Publisher`]s and [`Subscribers`] on a [`Topic`].
+///
+/// The schema is a YAML string which is obtained using the [`serde_reflection`] crate.
+/// It is obtained by using that crate's `trace_type` function on [`Message<T>`],
+/// then stripping out information about the `header` field to obtain the part that
+/// describes the `data` field.  This is not tested very well and it is unknown if these
+/// YAML string can serve as good runtime type identifiers across processes.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MessageSchema(String);
 
