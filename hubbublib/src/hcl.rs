@@ -26,10 +26,15 @@ pub struct Node {
 
 impl Node {
     /// Construct a new [`Node`] with the given `name`.
-    pub fn new(name: &str) -> Self {
+    pub async fn new(name: &str) -> Self {
         // TODO: Connect to Hub and have master track nodes for introspection.
         // TODO Idea: Upon connection to Hub, keep stream and share it with all
         // connected entities.
+        Hub::connect(&Message::new(HubEntity::Node {
+            node_name: String::from(name),
+        }))
+        .await
+        .unwrap();
         Self {
             name: String::from(name),
             subscriptions: DashSet::new(),

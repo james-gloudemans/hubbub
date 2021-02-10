@@ -114,17 +114,20 @@ impl Hub {
                 Ok(_) => {}
             },
             // If new Node, register in `self` and return
+            // TODO: allow for generation of a unique node name if user does not
+            // want to supply one.
             HubEntity::Node { node_name } => self.add_node(node_name).unwrap(),
         }
     }
 
-    /// Return an iterator over the names of the nodes.
+    /// Return an iterator over the names of the topics.
     pub fn topics(&self) -> Topics {
         Topics {
             inner: self.topics.0.iter(),
         }
     }
 
+    /// Return an iterator over the names of the nodes.
     pub fn nodes(&self) -> Nodes {
         Nodes {
             inner: self.nodes.0.iter(),
@@ -249,12 +252,8 @@ impl<'a> Iterator for Nodes<'a> {
 #[derive(Debug)]
 struct TopicRegistry(Arc<DashMap<TopicName, Topic>>);
 
-// impl IntoIter for TopicRegistry
-
 #[derive(Debug)]
 struct NodeRegistry(Arc<DashSet<NodeName>>);
-
-// impl IntoIter for NodeRegistry {}
 
 /// Error type representing all possible errors that can happen in [`Hub`] operations
 #[derive(Debug)]

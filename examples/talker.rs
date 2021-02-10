@@ -21,7 +21,7 @@ async fn main() {
         }
     }
 
-    let node = Node::new("Talker");
+    let node = Node::new("Talker").await;
     let mut publ = node.create_publisher::<String>(&topic).await.unwrap();
     for i in 1u32.. {
         time::sleep(time::Duration::from_millis(100)).await;
