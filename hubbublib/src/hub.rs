@@ -135,16 +135,16 @@ impl Hub {
     }
 
     // /// Return an iterator over the topics published on by the node named `node_name`
-    // pub fn node_publishers(&self, node_name: &str) /*-> Iter<String> */ {}
+    // pub fn node_publishers(&self, node_name: &str) -> Topics {}
 
     // /// Return an iterator over the topics subscribed to by the node named `node_name`
-    // pub fn node_subscribers(&self, node_name: &str) /*-> Iter<String> */ {}
+    // pub fn node_subscribers(&self, node_name: &str) -> Topics {}
 
     // /// Return an iterator over the nodes publishing on the topic named `topic_name`
-    // pub fn topic_publishers(&self, topic_name: &str) /*-> Iter<String> */ {}
+    // pub fn topic_publishers(&self, topic_name: &str) -> Nodes {}
 
     // /// Return an iterator over the nodes subscribed to the topic named `topic_name`
-    // pub fn topic_subscribers(&self, topic_name: &str) /*-> Iter<String> */ {}
+    // pub fn topic_subscribers(&self, topic_name: &str) -> Nodes {}
 
     /// Add a new Node for the [`Hub`] to track.
     pub fn add_node(&self, node_name: &str) -> Result<()> {
