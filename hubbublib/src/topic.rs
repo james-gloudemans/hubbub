@@ -15,6 +15,7 @@ type NodeName = String;
 /// A topic that is able to publish messages to all its subscribers
 #[derive(Debug)]
 pub struct Topic {
+    // TODO: should these be Dashes?
     subscribers: HashMap<NodeName, HubWriter>,
     publishers: HashSet<NodeName>,
     msg_schema: MessageSchema,
