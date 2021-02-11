@@ -121,19 +121,20 @@ impl Hub {
     }
 
     /// Return an iterator over the names of the topics.
-    pub fn topics(&self) -> Topics {
-        Topics {
+    pub fn topics<'a>(&'a self) -> Keys<'a, TopicName, Topic> {
+        Keys {
             inner: self.topics.0.iter(),
         }
     }
 
     /// Return an iterator over the names of the nodes.
-    pub fn nodes(&self) -> Nodes {
-        Nodes {
+    pub fn nodes<'a>(&'a self) -> SetItems<'a, NodeName> {
+        SetItems {
             inner: self.nodes.0.iter(),
         }
     }
 
+    // TODO
     // /// Return an iterator over the topics published on by the node named `node_name`
     // pub fn node_publishers(&self, node_name: &str) -> Topics {}
 
@@ -220,32 +221,38 @@ impl Hub {
     }
 }
 
-pub struct Topics<'a> {
-    inner: dashmap::iter::Iter<'a, TopicName, Topic>,
+pub struct Keys<'a, K, V> {
+    pub inner: dashmap::iter::Iter<'a, K, V>,
 }
 
-impl<'a> Iterator for Topics<'a> {
-    type Item = TopicName;
+impl<'a, K, V> Iterator for Keys<'a, K, V>
+where
+    K: Eq + std::hash::Hash + Clone,
+{
+    type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|item| item.key().to_owned())
     }
 }
 
-pub struct Nodes<'a> {
-    inner: dashmap::iter_set::Iter<
+pub struct SetItems<'a, I> {
+    pub inner: dashmap::iter_set::Iter<
         'a,
-        NodeName,
+        I,
         std::collections::hash_map::RandomState,
-        DashMap<NodeName, (), std::collections::hash_map::RandomState>,
+        DashMap<I, (), std::collections::hash_map::RandomState>,
     >,
 }
 
-impl<'a> Iterator for Nodes<'a> {
-    type Item = NodeName;
+impl<'a, I> Iterator for SetItems<'a, I>
+where
+    I: Eq + std::hash::Hash + Clone,
+{
+    type Item = I;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|item| item.to_owned())
+        self.inner.next().map(|item| item.clone())
     }
 }
 

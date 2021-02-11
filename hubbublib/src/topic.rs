@@ -2,11 +2,13 @@
 
 // #![allow(dead_code, unused_imports, unused_variables)]
 
-use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use bytes::Bytes;
+use dashmap::{DashMap, DashSet};
 use tokio::net::TcpStream;
 
+use crate::hub::{Keys, SetItems};
 use crate::msg::MessageSchema;
 use crate::HubWriter;
 
@@ -15,9 +17,8 @@ type NodeName = String;
 /// A topic that is able to publish messages to all its subscribers
 #[derive(Debug)]
 pub struct Topic {
-    // TODO: should these be Dashes?
-    subscribers: HashMap<NodeName, HubWriter>,
-    publishers: HashSet<NodeName>,
+    subscribers: Arc<DashMap<NodeName, HubWriter>>,
+    publishers: Arc<DashSet<NodeName>>,
     msg_schema: MessageSchema,
 }
 
@@ -25,20 +26,24 @@ impl Topic {
     /// Construct a new topic with no subscribers or publishers.
     pub fn new(msg_schema: &MessageSchema) -> Self {
         Self {
-            subscribers: HashMap::new(),
-            publishers: HashSet::new(),
+            subscribers: Arc::new(DashMap::new()),
+            publishers: Arc::new(DashSet::new()),
             msg_schema: msg_schema.to_owned(),
         }
     }
 
     /// Get an iterator over the writer for each subscriber to a [`Topic`].
-    pub fn subscribers(&self) -> std::collections::hash_map::Iter<NodeName, HubWriter> {
-        self.subscribers.iter()
+    pub fn subscribers<'a>(&'a self) -> Keys<'a, NodeName, HubWriter> {
+        Keys {
+            inner: self.subscribers.iter(),
+        }
     }
 
     /// Get an iterator over the reader for each publisher to a [`Topic`].
-    pub fn publishers(&self) -> std::collections::hash_set::Iter<NodeName> {
-        self.publishers.iter()
+    pub fn publishers<'a>(&'a self) -> SetItems<'a, NodeName> {
+        SetItems {
+            inner: self.publishers.iter(),
+        }
     }
 
     /// Add a new subscriber to a [`Topic`].
@@ -88,22 +93,16 @@ impl Topic {
     /// # Errors
     /// Returns `Err` as soon as one of the writes fails.
     pub async fn publish(&mut self, message: Bytes) -> tokio::io::Result<()> {
-        // `self.subscriber_streams` will be drained into this `HashMap`, retaining the
-        // subscribers that are still connected.  Initial capacity is the same as
-        // `self.subscriber_streams` based on the assumption that disconnects will be
-        // rare compared to publishes.
-        let mut connected_subs: HashMap<NodeName, HubWriter> =
-            HashMap::with_capacity(self.subscribers.capacity());
-
-        // Write the message and check for a `BrokenPipe` error.  Drops the subscriber on
-        // `BrokenPipe`, returns other errors, and retains the subscriber if no error.
-        for (node, mut sub) in self.subscribers.drain() {
-            let broken_pipe = sub.write_and_check(&message).await?;
-            if !broken_pipe {
-                connected_subs.insert(node, sub);
+        let mut disconnected: Vec<NodeName> = Vec::new();
+        for mut item in self.subscribers.iter_mut() {
+            let (node, sub) = item.pair_mut();
+            if sub.write_and_check(&message).await? {
+                disconnected.push(node.to_owned());
             }
         }
-        self.subscribers = connected_subs;
+        for node in disconnected {
+            self.subscribers.remove(&node);
+        }
         Ok(())
     }
 }
