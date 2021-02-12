@@ -17,6 +17,16 @@ async fn main() {
             println!("\t{}", topic);
         }
         println!("");
+        println!("Topics published by 'Talker':");
+        for topic in hub.node_publishers("Talker") {
+            println!("\t{}", topic);
+        }
+        println!("");
+        println!("Topics subscribed by 'Listener':");
+        for topic in hub.node_subscribers("Listener") {
+            println!("\t{}", topic);
+        }
+        println!("");
         let (stream, client_addr) = hub.listen().await.unwrap();
         println!("Accepting connecton from client at: {}", client_addr);
         let hub = Arc::clone(&hub);

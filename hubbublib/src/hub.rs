@@ -139,7 +139,7 @@ impl Hub {
         let mut result = HashSet::new();
         for topic in self.topics.0.iter() {
             if topic.publishers().contains(node_name) {
-                result.insert(node_name.to_owned());
+                result.insert(topic.key().to_owned());
             }
         }
         result
@@ -150,7 +150,7 @@ impl Hub {
         let mut result = HashSet::new();
         for topic in self.topics.0.iter() {
             if topic.subscribers().contains(node_name) {
-                result.insert(node_name.to_owned());
+                result.insert(topic.key().to_owned());
             }
         }
         result
