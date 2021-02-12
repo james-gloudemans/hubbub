@@ -73,8 +73,6 @@ impl Hub {
                 "Node connection failed due to malformed greeting: {}",
                 from_utf8(&buf).unwrap()
             ));
-        // TODO: Make a prettier message here
-        println!("Received Greeting: {:?}", greeting);
         // Use greeting to determine the entity's type
         match greeting.data() {
             // If publisher, listen for messages and push them to subscribers
@@ -84,6 +82,10 @@ impl Hub {
                 msg_schema,
             } => match self.add_publisher(node_name, topic_name, msg_schema) {
                 Ok(_) => {
+                    println!(
+                        "New publisher on topic '{}' from node '{}'",
+                        topic_name, node_name
+                    );
                     loop {
                         let mut buf = BytesMut::with_capacity(4096);
                         if stream.read_buf(&mut buf).await.unwrap() == 0 {
@@ -111,12 +113,20 @@ impl Hub {
                     println!("Failed to connect subscriber due to type mismatch.")
                 }
                 Err(_) => panic!("Error encountered while connecting subscriber."),
-                Ok(_) => {}
+                Ok(_) => {
+                    println!(
+                        "New subscriber on topic '{}' from node '{}'",
+                        topic_name, node_name
+                    );
+                }
             },
             // If new Node, register in `self` and return
             // TODO: allow for generation of a unique node name if user does not
             // want to supply one.
-            HubEntity::Node { node_name } => self.add_node(node_name).unwrap(),
+            HubEntity::Node { node_name } => {
+                println!("New node '{}'", node_name);
+                self.add_node(node_name).unwrap()
+            }
         }
     }
 
