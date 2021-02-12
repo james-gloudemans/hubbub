@@ -120,32 +120,57 @@ impl Hub {
         }
     }
 
-    /// Return an iterator over the names of the topics.
-    pub fn topics<'a>(&'a self) -> Keys<'a, TopicName, Topic> {
-        Keys {
-            inner: self.topics.0.iter(),
+    /// Return a `HashSet` of the names of the topics on a `Hub`.
+    pub fn topics(&self) -> HashSet<TopicName> {
+        self.topics
+            .0
+            .iter()
+            .map(|item| item.key().to_owned())
+            .collect()
+    }
+
+    /// Return a `HashSet` of the names of nodes on a `Hub`.
+    pub fn nodes(&self) -> HashSet<NodeName> {
+        self.nodes.0.iter().map(|name| name.to_owned()).collect()
+    }
+
+    /// Return a `HashSet` of the names of topics that a node named `node_name` is publishing on.
+    pub fn node_publishers(&self, node_name: &str) -> HashSet<TopicName> {
+        let mut result = HashSet::new();
+        for topic in self.topics.0.iter() {
+            if topic.publishers().contains(node_name) {
+                result.insert(node_name.to_owned());
+            }
+        }
+        result
+    }
+
+    /// Return a `HashSet` of the names of topics that a node named `node_name` is subscribed to.
+    pub fn node_subscribers(&self, node_name: &str) -> HashSet<TopicName> {
+        let mut result = HashSet::new();
+        for topic in self.topics.0.iter() {
+            if topic.subscribers().contains(node_name) {
+                result.insert(node_name.to_owned());
+            }
+        }
+        result
+    }
+
+    /// Return a `HashSet` of the names of nodes publishing on the topic named `topic_name`.
+    pub fn topic_publishers(&self, topic_name: &str) -> HashSet<NodeName> {
+        match self.topics.0.get(topic_name) {
+            None => HashSet::new(),
+            Some(topic) => topic.publishers(),
         }
     }
 
-    /// Return an iterator over the names of the nodes.
-    pub fn nodes<'a>(&'a self) -> SetItems<'a, NodeName> {
-        SetItems {
-            inner: self.nodes.0.iter(),
+    /// Return a `HashSet` of the names of nodes subscribed to the topic named `topic_name`.
+    pub fn topic_subscribers(&self, topic_name: &str) -> HashSet<NodeName> {
+        match self.topics.0.get(topic_name) {
+            None => HashSet::new(),
+            Some(topic) => topic.subscribers(),
         }
     }
-
-    // TODO
-    // /// Return an iterator over the topics published on by the node named `node_name`
-    // pub fn node_publishers(&self, node_name: &str) -> Topics {}
-
-    // /// Return an iterator over the topics subscribed to by the node named `node_name`
-    // pub fn node_subscribers(&self, node_name: &str) -> Topics {}
-
-    // /// Return an iterator over the nodes publishing on the topic named `topic_name`
-    // pub fn topic_publishers(&self, topic_name: &str) -> Nodes {}
-
-    // /// Return an iterator over the nodes subscribed to the topic named `topic_name`
-    // pub fn topic_subscribers(&self, topic_name: &str) -> Nodes {}
 
     /// Add a new Node for the [`Hub`] to track.
     pub fn add_node(&self, node_name: &str) -> Result<()> {
@@ -218,41 +243,6 @@ impl Hub {
     /// address will be returned.
     pub async fn listen(&self) -> tokio::io::Result<(TcpStream, SocketAddr)> {
         self.listener.accept().await
-    }
-}
-
-pub struct Keys<'a, K, V> {
-    pub inner: dashmap::iter::Iter<'a, K, V>,
-}
-
-impl<'a, K, V> Iterator for Keys<'a, K, V>
-where
-    K: Eq + std::hash::Hash + Clone,
-{
-    type Item = K;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|item| item.key().to_owned())
-    }
-}
-
-pub struct SetItems<'a, I> {
-    pub inner: dashmap::iter_set::Iter<
-        'a,
-        I,
-        std::collections::hash_map::RandomState,
-        DashMap<I, (), std::collections::hash_map::RandomState>,
-    >,
-}
-
-impl<'a, I> Iterator for SetItems<'a, I>
-where
-    I: Eq + std::hash::Hash + Clone,
-{
-    type Item = I;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|item| item.clone())
     }
 }
 

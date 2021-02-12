@@ -2,13 +2,13 @@
 
 // #![allow(dead_code, unused_imports, unused_variables)]
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use bytes::Bytes;
 use dashmap::{DashMap, DashSet};
 use tokio::net::TcpStream;
 
-use crate::hub::{Keys, SetItems};
 use crate::msg::MessageSchema;
 use crate::HubWriter;
 
@@ -32,18 +32,17 @@ impl Topic {
         }
     }
 
-    /// Get an iterator over the writer for each subscriber to a [`Topic`].
-    pub fn subscribers<'a>(&'a self) -> Keys<'a, NodeName, HubWriter> {
-        Keys {
-            inner: self.subscribers.iter(),
-        }
+    /// Return a `HashSet` of the names of the nodes subscribed to a `Topic`.
+    pub fn subscribers(&self) -> HashSet<NodeName> {
+        self.subscribers
+            .iter()
+            .map(|item| item.key().to_owned())
+            .collect()
     }
 
-    /// Get an iterator over the reader for each publisher to a [`Topic`].
-    pub fn publishers<'a>(&'a self) -> SetItems<'a, NodeName> {
-        SetItems {
-            inner: self.publishers.iter(),
-        }
+    /// Return a `HashSet` of the names of the nodes subscribed to a `Topic`.
+    pub fn publishers(&self) -> HashSet<NodeName> {
+        self.publishers.iter().map(|name| name.to_owned()).collect()
     }
 
     /// Add a new subscriber to a [`Topic`].
