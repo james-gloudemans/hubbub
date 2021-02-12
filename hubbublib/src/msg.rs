@@ -5,6 +5,7 @@ use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_reflection::{ContainerFormat, Samples, Tracer, TracerConfig};
 
 /// A message used to exhange Rust data structures between Hubbub nodes.
 ///
@@ -94,7 +95,8 @@ where
 
 /// A header that is attached to every [`Message<T>`].  Currently, just contains a timestamp.
 #[derive(Serialize, Deserialize, Debug)]
-struct Header {
+pub struct Header {
+    #[serde(with = "timestamp")]
     stamp: DateTime<Utc>,
 }
 
@@ -106,12 +108,74 @@ impl Header {
     }
 }
 
+mod timestamp {
+    use chrono::{DateTime, TimeZone, Utc};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    #[derive(Serialize, Deserialize)]
+    struct TimeStamp(i64);
+
+    pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        TimeStamp(date.timestamp_millis()).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        TimeStamp::deserialize(deserializer).map(|time| Utc.timestamp_millis(time.0))
+    }
+}
+
+/// A type for representing [`Message`] type formats.  This is used, e.g., to enforce
+/// type consistency among all [`Publisher`]s and [`Subscribers`] on a [`Topic`].
+///
+/// The schema is a YAML string which is obtained using the [`serde_reflection`] crate.
+/// It is obtained by using that crate's `trace_type` function on [`Message<T>`],
+/// then stripping out information about the `header` field to obtain the part that
+/// describes the `data` field.  This is not tested very well and it is unknown if these
+/// YAML string can serve as good runtime type identifiers across processes.
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
+pub struct MessageSchema(String);
+
+impl MessageSchema {
+    /// Create a new `MessageSchema` for the given deserializable type `T`.
+    pub fn new<T>() -> Result<Self>
+    where
+        T: DeserializeOwned,
+    {
+        let mut tracer = Tracer::new(TracerConfig::default());
+        let samples = Samples::new();
+        tracer.trace_type::<Message<T>>(&samples)?;
+        let registry = tracer.registry()?;
+        // Strip the `header` field from `Message` and just display the schema of the
+        // `data` field
+        let schema = if let ContainerFormat::Struct(fields) = &registry["Message"] {
+            serde_yaml::to_string(&fields[1].value).unwrap()
+        } else {
+            serde_yaml::to_string(&()).unwrap()
+        };
+        Ok(Self(schema))
+    }
+}
+
+use std::fmt;
+impl fmt::Display for MessageSchema {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Error type representing all possible errors that can occur with [`Message<T>`]s
 /// and related functions and methods.
 #[derive(Debug)]
 pub enum MessageError {
     SerdeError(serde_json::Error),
     Utf8Error(std::str::Utf8Error),
+    ReflectionError(serde_reflection::Error),
 }
 
 impl From<serde_json::Error> for MessageError {
@@ -123,6 +187,12 @@ impl From<serde_json::Error> for MessageError {
 impl From<std::str::Utf8Error> for MessageError {
     fn from(e: std::str::Utf8Error) -> Self {
         MessageError::Utf8Error(e)
+    }
+}
+
+impl From<serde_reflection::Error> for MessageError {
+    fn from(e: serde_reflection::Error) -> Self {
+        MessageError::ReflectionError(e)
     }
 }
 

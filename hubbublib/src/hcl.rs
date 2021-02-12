@@ -1,35 +1,41 @@
 //! # Hubbub Client Library
-// #![allow(dead_code, unused_imports, unused_variables)]
-use std::collections::HashSet;
+
+#![allow(dead_code, unused_imports, unused_variables)]
+
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::str::from_utf8;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use bytes::Bytes;
 use dashmap::DashSet;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 
-use crate::msg::{Message, MessageError};
-use crate::{HubReader, HubWriter, NodeEntity};
+use crate::hub::Hub;
+use crate::msg::{Message, MessageError, MessageSchema};
+use crate::{HubEntity, HubReader, HubWriter};
 
 /// A node in the Hubbub network
 #[derive(Debug)]
 pub struct Node {
     name: String,
+    // TODO: Can these just be HashSets?
     subscriptions: DashSet<String>,
     publishers: DashSet<String>,
 }
 
+// TODO: Disconnect from Hub on drop.
 impl Node {
     /// Construct a new [`Node`] with the given `name`.
-    pub fn new(name: &str) -> Self {
-        // TODO: Connect to Hub and have master track nodes for introspection.
+    pub async fn new(name: &str) -> Self {
         // TODO Idea: Upon connection to Hub, keep stream and share it with all
         // connected entities.
+        Hub::connect(&Message::new(HubEntity::Node {
+            node_name: String::from(name),
+        }))
+        .await
+        .unwrap();
         Self {
             name: String::from(name),
             subscriptions: DashSet::new(),
@@ -172,17 +178,24 @@ where
     /// }
     /// ```
     async fn new(node_name: &str, topic_name: &str) -> Result<Publisher<T>> {
-        let stream = TcpStream::connect("127.0.0.1:8080").await?;
-        let mut writer = HubWriter::new(stream);
-        let greeting = Message::new(Some(NodeEntity::Publisher {
+        let stream = Hub::connect(&Message::new(HubEntity::Publisher {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),
-        }));
-        writer.write(&greeting.as_bytes()?).await?;
+            msg_schema: MessageSchema::new::<T>()?,
+        }))
+        .await
+        .unwrap();
+        // let stream = TcpStream::connect("127.0.0.1:8080").await?;
+        // let mut writer = HubWriter::new(stream);
+        // let greeting = Message::new(Some(HubEntity::Publisher {
+        //     node_name: String::from(node_name),
+        //     topic_name: String::from(topic_name),
+        // }));
+        // writer.write(&greeting.as_bytes()?).await?;
         Ok(Self {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),
-            writer,
+            writer: HubWriter::new(stream),
             phantom_msg_type: PhantomData,
         })
     }
@@ -272,19 +285,18 @@ where
         topic_name: String,
         receiver: Arc<Mutex<R>>,
     ) -> Result<Subscriber<M, R>> {
-        let stream = TcpStream::connect("127.0.0.1:8080").await?;
-        let mut writer = HubWriter::new(stream);
-        let greeting = Message::new(Some(NodeEntity::Subscriber {
+        let stream = Hub::connect(&Message::new(HubEntity::Subscriber {
             node_name: String::from(&node_name),
             topic_name: String::from(&topic_name),
-        }));
-        writer.write(&greeting.as_bytes()?).await?;
-        let reader = HubReader::new(writer.into_inner());
+            msg_schema: MessageSchema::new::<M>()?,
+        }))
+        .await
+        .unwrap();
         Ok(Self {
             receiver,
             node_name,
             topic_name,
-            reader,
+            reader: HubReader::new(stream),
             phantom_msg_type: PhantomData,
         })
     }
@@ -347,12 +359,19 @@ pub enum HubbubError {
     MessageError(MessageError),
     DuplicatePublisher { topic: String },
     DuplicateSubscriber { topic: String },
+    ReflectionFailed,
     // NotImplemented,
 }
 
 impl From<tokio::io::Error> for HubbubError {
     fn from(e: tokio::io::Error) -> Self {
         HubbubError::IoError(e)
+    }
+}
+
+impl From<serde_reflection::Error> for HubbubError {
+    fn from(e: serde_reflection::Error) -> Self {
+        HubbubError::ReflectionFailed
     }
 }
 

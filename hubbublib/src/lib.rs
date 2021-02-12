@@ -1,14 +1,12 @@
-#![allow(dead_code, unused_imports, unused_variables)]
-use std::collections::VecDeque;
-use std::slice::Iter;
+// #![allow(dead_code, unused_imports, unused_variables)]
 
-use bytes::{Bytes, BytesMut};
-use chrono::{DateTime, Utc};
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
 
 pub mod hcl;
+pub mod hub;
 pub mod msg;
 pub mod topic;
 
@@ -95,17 +93,22 @@ impl HubReader {
 }
 
 /// A type which can be used by node entities (i.e. publishers or subscribers) to
-/// identify themselves to the `Hub` by sending a `Message<NodeEntity>` as a greeting
+/// identify themselves to the `Hub` by sending a `Message<HubEntity>` as a greeting
 /// immediately after connection.
 #[derive(Serialize, Deserialize, Debug)]
-pub enum NodeEntity {
+pub enum HubEntity {
     Publisher {
         node_name: String,
         topic_name: String,
+        msg_schema: msg::MessageSchema,
     },
     Subscriber {
         node_name: String,
         topic_name: String,
+        msg_schema: msg::MessageSchema,
+    },
+    Node {
+        node_name: String,
     },
 }
 
