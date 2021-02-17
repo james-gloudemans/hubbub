@@ -20,7 +20,7 @@ name = "hubbub"
 path = "src/main.rs"
 
 [[example]]
-name = "talker"
+name = "hub_talker"
 
 [[example]]
-name = "listener"
+name = "hub_listener"
