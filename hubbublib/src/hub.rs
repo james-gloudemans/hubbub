@@ -8,14 +8,14 @@ use std::net::SocketAddr;
 use std::str::from_utf8;
 use std::sync::Arc;
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use dashmap::{DashMap, DashSet};
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::msg::{Message, MessageSchema};
 use crate::topic::Topic;
-use crate::{HubEntity, HubWriter};
+use crate::{HubEntity, HubRequest, HubWriter};
 
 type TopicName = String;
 type NodeName = String;
@@ -127,6 +127,50 @@ impl Hub {
                 println!("New node '{}'", node_name);
                 self.add_node(node_name).unwrap()
             }
+
+            // If CLI request, parse request and send response based on the current Hub graph.
+            // TODO: lots of repitition here, need some abstraction
+            HubEntity::Cli(request) => match request {
+                HubRequest::NodeList => {
+                    let response: Bytes = serde_json::to_vec(&self.nodes())
+                        .map(|mut s| {
+                            s.push(b'\n' as u8);
+                            Bytes::from(s)
+                        })
+                        .unwrap();
+                    let mut writer = BufWriter::new(stream);
+                    writer.write_all(&response).await.unwrap();
+                    writer.flush().await.unwrap();
+                }
+                HubRequest::TopicList => {
+                    let response: Bytes = serde_json::to_vec(&self.topics())
+                        .map(|mut s| {
+                            s.push(b'\n' as u8);
+                            Bytes::from(s)
+                        })
+                        .unwrap();
+                    let mut writer = BufWriter::new(stream);
+                    writer.write_all(&response).await.unwrap();
+                    writer.flush().await.unwrap();
+                }
+                HubRequest::TopicSchema(topic_name) => {
+                    let schema: String = self
+                        .topics
+                        .0
+                        .get(topic_name)
+                        .map(|t| t.schema().to_owned())
+                        .unwrap_or("".to_owned());
+                    let response: Bytes = serde_json::to_vec(&schema)
+                        .map(|mut s| {
+                            s.push(b'\n' as u8);
+                            Bytes::from(s)
+                        })
+                        .unwrap();
+                    let mut writer = BufWriter::new(stream);
+                    writer.write_all(&response).await.unwrap();
+                    writer.flush().await.unwrap();
+                }
+            },
         }
     }
 

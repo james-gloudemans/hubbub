@@ -160,6 +160,10 @@ impl MessageSchema {
         };
         Ok(Self(schema))
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 use std::fmt;

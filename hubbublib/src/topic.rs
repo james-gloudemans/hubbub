@@ -45,6 +45,10 @@ impl Topic {
         self.publishers.iter().map(|name| name.to_owned()).collect()
     }
 
+    pub fn schema(&self) -> &str {
+        self.msg_schema.as_str()
+    }
+
     /// Add a new subscriber to a [`Topic`].
     ///
     /// # Errors
