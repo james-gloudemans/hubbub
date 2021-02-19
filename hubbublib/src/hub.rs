@@ -173,6 +173,7 @@ impl Hub {
                         Some(topic) => topic,
                     };
                     let schema = topic.schema().to_owned();
+                    // Drop reference into dashmap when done w/ it to avoid deadlock.
                     drop(topic);
                     let node_name = "CLI_NODE";
                     self.add_node("CLI_NODE").unwrap();
