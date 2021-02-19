@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use bytes::{Bytes, BytesMut};
 use dashmap::{DashMap, DashSet};
+use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -17,6 +18,7 @@ use crate::msg::{Message, MessageSchema};
 use crate::topic::Topic;
 use crate::{HubEntity, HubRequest, HubWriter};
 
+// TODO: Should these be struct XName(String)?
 type TopicName = String;
 type NodeName = String;
 type ItemRef<'a> = dashmap::mapref::multiple::RefMulti<'a, String, Topic>;
@@ -129,29 +131,12 @@ impl Hub {
             }
 
             // If CLI request, parse request and send response based on the current Hub graph.
-            // TODO: lots of repitition here, need some abstraction
             HubEntity::Cli(request) => match request {
                 HubRequest::NodeList => {
-                    let response: Bytes = serde_json::to_vec(&self.nodes())
-                        .map(|mut s| {
-                            s.push(b'\n' as u8);
-                            Bytes::from(s)
-                        })
-                        .unwrap();
-                    let mut writer = BufWriter::new(stream);
-                    writer.write_all(&response).await.unwrap();
-                    writer.flush().await.unwrap();
+                    Hub::cli_response(&self.nodes(), stream).await;
                 }
                 HubRequest::TopicList => {
-                    let response: Bytes = serde_json::to_vec(&self.topics())
-                        .map(|mut s| {
-                            s.push(b'\n' as u8);
-                            Bytes::from(s)
-                        })
-                        .unwrap();
-                    let mut writer = BufWriter::new(stream);
-                    writer.write_all(&response).await.unwrap();
-                    writer.flush().await.unwrap();
+                    Hub::cli_response(&self.topics(), stream).await;
                 }
                 HubRequest::TopicSchema(topic_name) => {
                     let schema: String = self
@@ -160,18 +145,26 @@ impl Hub {
                         .get(topic_name)
                         .map(|t| t.schema().to_owned())
                         .unwrap_or("".to_owned());
-                    let response: Bytes = serde_json::to_vec(&schema)
-                        .map(|mut s| {
-                            s.push(b'\n' as u8);
-                            Bytes::from(s)
-                        })
-                        .unwrap();
-                    let mut writer = BufWriter::new(stream);
-                    writer.write_all(&response).await.unwrap();
-                    writer.flush().await.unwrap();
+                    Hub::cli_response(&schema, stream).await;
                 }
             },
         }
+    }
+
+    /// Boilerplate for responding to request from CLI
+    async fn cli_response<T>(response: &T, stream: TcpStream)
+    where
+        T: Serialize,
+    {
+        let response: Bytes = serde_json::to_vec(response)
+            .map(|mut s| {
+                s.push(b'\n' as u8);
+                Bytes::from(s)
+            })
+            .unwrap();
+        let mut writer = BufWriter::new(stream);
+        writer.write_all(&response).await.unwrap();
+        writer.flush().await.unwrap();
     }
 
     /// Return a `HashSet` of the names of the topics on a `Hub`.

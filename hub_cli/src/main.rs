@@ -49,43 +49,40 @@ async fn main() {
         .get_matches();
 
     // Arg / subcommand matching
-    // TODO: lots of repitition, need abstraction.
     if let Some(matches) = matches.subcommand_matches("topic") {
         if let Some(matches) = matches.subcommand_matches("list") {
-            let request = Message::new(HubEntity::Cli(HubRequest::TopicList));
-            let stream = Hub::connect(&request).await.unwrap();
-            let mut reader = BufReader::new(stream);
-            let mut buf = String::new();
-            reader.read_line(&mut buf).await.unwrap();
+            let req = HubRequest::TopicList;
             let response: HashSet<String> =
-                serde_json::from_str(&buf).expect("Malformed response from server.");
+                serde_json::from_str(&request(req).await).expect("Malformed response from server.");
             for topic in response {
                 println!("{}", topic);
             }
         } else if let Some(matches) = matches.subcommand_matches("schema") {
             let topic = matches.value_of("TOPIC").unwrap();
-            let request = Message::new(HubEntity::Cli(HubRequest::TopicSchema(topic.to_owned())));
-            let stream = Hub::connect(&request).await.unwrap();
-            let mut reader = BufReader::new(stream);
-            let mut buf = String::new();
-            reader.read_line(&mut buf).await.unwrap();
+            let req = HubRequest::TopicSchema(topic.to_owned());
             let response: String =
-                serde_json::from_str(&buf).expect("Malformed response from server.");
+                serde_json::from_str(&request(req).await).expect("Malformed response from server.");
             println!("Message schema for '{}':", topic);
             println!("{}", response);
         }
     } else if let Some(matches) = matches.subcommand_matches("node") {
         if let Some(matches) = matches.subcommand_matches("list") {
-            let request = Message::new(HubEntity::Cli(HubRequest::NodeList));
-            let stream = Hub::connect(&request).await.unwrap();
-            let mut reader = BufReader::new(stream);
-            let mut buf = String::new();
-            reader.read_line(&mut buf).await.unwrap();
+            let req = HubRequest::NodeList;
             let response: HashSet<String> =
-                serde_json::from_str(&buf).expect("Malformed response from server.");
+                serde_json::from_str(&request(req).await).expect("Malformed response from server.");
             for node in response {
                 println!("{}", node);
             }
         }
     }
+}
+
+/// Boilerplate for sending request to Hub and waiting for reply.
+async fn request(req: HubRequest) -> String {
+    let request = Message::new(HubEntity::Cli(req));
+    let stream = Hub::connect(&request).await.unwrap();
+    let mut reader = BufReader::new(stream);
+    let mut buf = String::new();
+    reader.read_line(&mut buf).await.unwrap();
+    buf
 }
