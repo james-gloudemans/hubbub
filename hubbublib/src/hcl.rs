@@ -11,6 +11,7 @@ use dashmap::DashSet;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::task::JoinHandle;
+use uuid::Uuid;
 
 use crate::hub::Hub;
 use crate::msg::{Message, MessageError, MessageSchema};
@@ -28,16 +29,20 @@ pub struct Node {
 // TODO: Disconnect from Hub on drop.
 impl Node {
     /// Construct a new [`Node`] with the given `name`.
-    pub async fn new(name: &str) -> Self {
+    pub async fn new(name: Option<&str>) -> Self {
         // TODO Idea: Upon connection to Hub, keep stream and share it with all
         // connected entities.
+        let node_name: String = match name {
+            Some(name) => String::from(name),
+            None => Uuid::new_v4().to_string(),
+        };
         Hub::connect(&Message::new(HubEntity::Node {
-            node_name: String::from(name),
+            node_name: node_name.clone(),
         }))
         .await
         .unwrap();
         Self {
-            name: String::from(name),
+            name: node_name.clone(),
             subscriptions: DashSet::new(),
             publishers: DashSet::new(),
         }
@@ -185,13 +190,6 @@ where
         }))
         .await
         .unwrap();
-        // let stream = TcpStream::connect("127.0.0.1:8080").await?;
-        // let mut writer = HubWriter::new(stream);
-        // let greeting = Message::new(Some(HubEntity::Publisher {
-        //     node_name: String::from(node_name),
-        //     topic_name: String::from(topic_name),
-        // }));
-        // writer.write(&greeting.as_bytes()?).await?;
         Ok(Self {
             node_name: String::from(node_name),
             topic_name: String::from(topic_name),

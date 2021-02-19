@@ -66,7 +66,7 @@ async fn main() {
         }
     }
 
-    let node = Node::new("Listener").await;
+    let node = Node::new(None).await;
     let msg_counter = Counter { count: 0 };
     let sub = node
         .create_subscriber::<String, _>(topic, msg_counter)
