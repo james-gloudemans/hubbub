@@ -36,6 +36,26 @@ async fn main() {
                                 .required(true)
                                 .index(1),
                         ),
+                )
+                .subcommand(
+                    SubCommand::with_name("info")
+                        .about("Get detailed info about a topic.")
+                        .arg(
+                            Arg::with_name("TOPIC")
+                                .help("The name of the topic.")
+                                .required(true)
+                                .index(1),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("echo")
+                        .about("Echo messages being sent on a topic.")
+                        .arg(
+                            Arg::with_name("TOPIC")
+                                .help("The name of the topic.")
+                                .required(true)
+                                .index(1),
+                        ),
                 ),
         )
         .subcommand(
@@ -44,6 +64,16 @@ async fn main() {
                 .setting(AppSettings::SubcommandRequiredElseHelp)
                 .subcommand(
                     SubCommand::with_name("list").about("List all the nodes in the Hubbub graph."),
+                )
+                .subcommand(
+                    SubCommand::with_name("info")
+                        .about("Get detailed info about a node.")
+                        .arg(
+                            Arg::with_name("NODE")
+                                .help("Sets the name of the node.")
+                                .required(true)
+                                .index(1),
+                        ),
                 ),
         )
         .get_matches();
@@ -64,6 +94,31 @@ async fn main() {
                 serde_json::from_str(&request(req).await).expect("Malformed response from server.");
             println!("Message schema for '{}':", topic);
             println!("{}", response);
+        } else if let Some(matches) = matches.subcommand_matches("info") {
+            let topic = matches.value_of("TOPIC").unwrap();
+            let req = HubRequest::TopicInfo(topic.to_owned());
+            let response: (HashSet<String>, HashSet<String>) =
+                serde_json::from_str(&request(req).await).expect("Malformed response from server.");
+            println!("Info for topic '{}':", topic);
+            println!("Publishers:");
+            for node in response.0 {
+                println!("\t{}", node);
+            }
+            println!("Subscribers:");
+            for node in response.1 {
+                println!("\t{}", node);
+            }
+        } else if let Some(matches) = matches.subcommand_matches("echo") {
+            let topic = matches.value_of("TOPIC").unwrap();
+            let request = Message::new(HubEntity::Cli(HubRequest::TopicEcho(topic.to_owned())));
+            let stream = Hub::connect(&request).await.unwrap();
+            let mut reader = BufReader::new(stream);
+            loop {
+                let mut buf = String::new();
+                reader.read_line(&mut buf).await.unwrap();
+                let data: serde_json::Value = serde_json::from_str(&buf).unwrap();
+                println!("{}", data["data"]);
+            }
         }
     } else if let Some(matches) = matches.subcommand_matches("node") {
         if let Some(matches) = matches.subcommand_matches("list") {
@@ -72,6 +127,20 @@ async fn main() {
                 serde_json::from_str(&request(req).await).expect("Malformed response from server.");
             for node in response {
                 println!("{}", node);
+            }
+        } else if let Some(matches) = matches.subcommand_matches("info") {
+            let node = matches.value_of("NODE").unwrap();
+            let req = HubRequest::NodeInfo(node.to_owned());
+            let response: (HashSet<String>, HashSet<String>) =
+                serde_json::from_str(&request(req).await).expect("Malformed response from server.");
+            println!("Info for node '{}':", node);
+            println!("Publishes on topics:");
+            for topic in response.0 {
+                println!("\t{}", topic);
+            }
+            println!("Subscribes to topics:");
+            for topic in response.1 {
+                println!("\t{}", topic);
             }
         }
     }

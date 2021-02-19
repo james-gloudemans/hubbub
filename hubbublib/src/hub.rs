@@ -135,6 +135,16 @@ impl Hub {
                 HubRequest::NodeList => {
                     Hub::cli_response(&self.nodes(), stream).await;
                 }
+                HubRequest::NodeInfo(node_name) => {
+                    Hub::cli_response(
+                        &(
+                            self.node_publishers(node_name),
+                            self.node_subscribers(node_name),
+                        ),
+                        stream,
+                    )
+                    .await;
+                }
                 HubRequest::TopicList => {
                     Hub::cli_response(&self.topics(), stream).await;
                 }
@@ -146,6 +156,33 @@ impl Hub {
                         .map(|t| t.schema().to_owned())
                         .unwrap_or("".to_owned());
                     Hub::cli_response(&schema, stream).await;
+                }
+                HubRequest::TopicInfo(topic_name) => {
+                    Hub::cli_response(
+                        &(
+                            self.topic_publishers(topic_name),
+                            self.topic_subscribers(topic_name),
+                        ),
+                        stream,
+                    )
+                    .await;
+                }
+                HubRequest::TopicEcho(topic_name) => {
+                    let topic = match self.topics.0.get(topic_name) {
+                        None => return,
+                        Some(topic) => topic,
+                    };
+                    let schema = topic.schema().to_owned();
+                    drop(topic);
+                    let node_name = "CLI_NODE";
+                    self.add_node("CLI_NODE").unwrap();
+                    self.add_subscriber(
+                        node_name,
+                        topic_name,
+                        &MessageSchema::from_str(&schema),
+                        stream,
+                    )
+                    .expect("Lazy expect message lol.");
                 }
             },
         }

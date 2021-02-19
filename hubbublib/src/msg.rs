@@ -161,6 +161,10 @@ impl MessageSchema {
         Ok(Self(schema))
     }
 
+    pub fn from_str(schema: &str) -> Self {
+        Self(schema.to_owned())
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }

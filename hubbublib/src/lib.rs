@@ -116,8 +116,11 @@ pub enum HubEntity {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HubRequest {
     NodeList,
+    NodeInfo(String),
     TopicList,
     TopicSchema(String),
+    TopicInfo(String),
+    TopicEcho(String),
 }
 
 #[cfg(test)]
