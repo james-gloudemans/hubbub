@@ -34,7 +34,7 @@ pub struct Hub {
 }
 
 impl Hub {
-    /// Construct a new [`Hub`]listening on the given IP address `addr`
+    /// Construct a new [`Hub`] listening on the given IP address `addr`
     ///
     /// # Panics
     /// Panics if the given IP address is malformed or if the [`TcpListener`] fails to bind
@@ -63,8 +63,7 @@ impl Hub {
         Ok(writer.into_inner())
     }
 
-    // TODO: make connection a request / reply so the reply can contain info about
-    // errors
+    // TODO: make connection a request / reply so the reply can contain info about errors
     pub async fn process_new_entity(&self, mut stream: TcpStream) {
         let mut buf = BytesMut::with_capacity(256);
         // Wait for greeting message from new entity
