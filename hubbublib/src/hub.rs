@@ -33,7 +33,6 @@ pub struct Hub {
     nodes: NodeRegistry,
 }
 
-// TODO: #1 improve Hub API for introspection
 impl Hub {
     /// Construct a new [`Hub`]listening on the given IP address `addr`
     ///
@@ -65,7 +64,7 @@ impl Hub {
     }
 
     // TODO: make connection a request / reply so the reply can contain info about
-    // connection errors
+    // errors
     pub async fn process_new_entity(&self, mut stream: TcpStream) {
         let mut buf = BytesMut::with_capacity(256);
         // Wait for greeting message from new entity
@@ -123,8 +122,6 @@ impl Hub {
                 }
             },
             // If new Node, register in `self` and return
-            // TODO: allow for generation of a unique node name if user does not
-            // want to supply one.
             HubEntity::Node { node_name } => {
                 println!("New node '{}'", node_name);
                 self.add_node(node_name).unwrap()

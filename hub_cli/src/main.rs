@@ -20,6 +20,7 @@ async fn main() {
         .author("James Gloudemans <james.gloudemans@gmail.com")
         .about("Interact with Hubbub")
         .setting(AppSettings::SubcommandRequiredElseHelp)
+        // 'topic' subcommand
         .subcommand(
             SubCommand::with_name("topic")
                 .about("Inspect and interact with Hubbub topics.")
@@ -58,6 +59,7 @@ async fn main() {
                         ),
                 ),
         )
+        // 'node subcommand
         .subcommand(
             SubCommand::with_name("node")
                 .about("Inspect nodes in the Hubbub graph.")
